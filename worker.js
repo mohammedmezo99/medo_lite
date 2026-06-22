@@ -3,7 +3,7 @@ const DEFAULT_WORKFLOW_FILE = "build.yml";
 const INVALID_USAGE_MESSAGE = "Please send /mezo <ROM_LINK> with a valid ROM link.";
 const BUILD_USAGE_MESSAGE = "Usage:\n/build <codename> <region>\n/build <codename> latest\n\nExample:\n/build zircon china";
 const DISPATCH_FAILURE_MESSAGE = "Build request could not be started. Please contact MEZO.";
-const ACK_MESSAGE = " Link received by MEZO.\n⚡ DeadZone Lite is now building.\n⏳ Please wait 40–60 minutes.";
+const ACK_MESSAGE = "\u{1F4E5} Link received by MEZO.\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.";
 const HELP_MESSAGE =
   "MEZO Lite Bot\n\n/mezo <ROM_LINK> — Build from link\n/build <codename> <region> — Build latest region ROM\n/build <codename> latest — Build latest available ROM\n/roms <codename> — Find OTA ROMs\n/regions <codename> — Available regions\n/device <codename> — Device summary\n/latest — Latest completed build\n/builds — Recent builds\n/status — Private only";
 const ROM_SOURCE_URL =
@@ -97,13 +97,13 @@ async function handleTelegramWebhook(request, env) {
       return handlePrivateStatusCommand(env, message, chatId, chatType, isPublicChat, isAuthorizedPrivateChat);
     case "queue":
       return handlePrivateListCommand(env, message, chatId, chatType, isPublicChat, isAuthorizedPrivateChat, {
-        publicMessage: " Queue is private.",
+        publicMessage: "\u{1F512} Queue is private.",
         unauthorizedMessage: "⛔ Unauthorized.",
         formatter: formatQueueBuilds,
       });
     case "failed":
       return handlePrivateListCommand(env, message, chatId, chatType, isPublicChat, isAuthorizedPrivateChat, {
-        publicMessage: " Failed builds are private.",
+        publicMessage: "\u{1F512} Failed builds are private.",
         unauthorizedMessage: "⛔ Unauthorized.",
         formatter: formatFailedBuilds,
       });
@@ -151,7 +151,7 @@ async function handleTelegramWebhook(request, env) {
 
 async function handlePrivateStatusCommand(env, message, chatId, chatType, isPublicChat, isAuthorizedPrivateChat) {
   if (isPublicChat) {
-    await sendTelegramMessage(env, chatId, " Status is private.", message.message_id);
+    await sendTelegramMessage(env, chatId, "\u{1F512} Status is private.", message.message_id);
     return okResponse();
   }
 
@@ -229,11 +229,11 @@ async function handleBuildCommand(env, message, args) {
 
   const newest = selected[0];
   const ackPrefix = parsed.region
-    ? ` Latest ${parsed.codename.toUpperCase()} ${parsed.region} ROM selected by MEZO.`
-    : ` Latest ${parsed.codename.toUpperCase()} ROM selected by MEZO.`;
+    ? `\u{1F4E5} Latest ${parsed.codename.toUpperCase()} ${parsed.region} ROM selected by MEZO.`
+    : `\u{1F4E5} Latest ${parsed.codename.toUpperCase()} ROM selected by MEZO.`;
 
   await startBuildFromRomLink(env, message, newest.downloadLink, {
-    ackMessage: `${ackPrefix}\n ${newest.romVersion} • ${newest.android}\n⚡ DeadZone Lite is now building.\n⏳ Please wait 40–60 minutes.`,
+    ackMessage: `${ackPrefix}\n\u{1F9E9} ${newest.romVersion} • ${newest.android}\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.`,
     metadata: romToBuildMetadata(newest),
   });
   return okResponse();
@@ -268,13 +268,13 @@ async function handleRomsCommand(env, args) {
   const truncated = roms.length > limit;
   const selected = roms.slice(0, limit);
   const exampleRegion = (selected[0]?.region || "china").toLowerCase();
-  const lines = [` OTA ROMs for ${codename.toUpperCase()}`, ""];
+  const lines = [`\u{1F50E} OTA ROMs for ${codename.toUpperCase()}`, ""];
 
   selected.forEach((rom, index) => {
-    lines.push(`${toKeycapNumber(index + 1)}  Region: ${rom.region}`);
-    lines.push(` Version: ${rom.romVersion}`);
-    lines.push(` Android: ${rom.android}`);
-    lines.push(` /mezo ${rom.downloadLink}`);
+    lines.push(`${toKeycapNumber(index + 1)}  \u{1F30D}\u00A0Region: ${rom.region}`);
+    lines.push(`\u{1F9E9}\u00A0Version: ${rom.romVersion}`);
+    lines.push(`\u{1F916}\u00A0Android: ${rom.android}`);
+    lines.push(`\u{1F517}\u00A0/mezo ${rom.downloadLink}`);
     lines.push("");
   });
 
@@ -291,7 +291,7 @@ async function handleRomsCommand(env, args) {
   if (lines[lines.length - 1] !== "") {
     lines.push("");
   }
-  lines.push(`⚡ To build directly, send: /build ${codename} ${exampleRegion}`);
+  lines.push(`\u26A1 To build directly, send: /build ${codename} ${exampleRegion}`);
 
   return lines.join("\n").trim();
 }
@@ -313,7 +313,7 @@ async function handleRegionsCommand(env, args) {
   }
 
   return [
-    `Available regions for ${codename.toUpperCase()}`,
+    `\u{1F30D} Available regions for ${codename.toUpperCase()}`,
     "",
     ...regions,
     "",
@@ -377,8 +377,8 @@ async function formatLatestBuild(env) {
     "",
     ` Device: ${row.device_name || "Unknown"}`,
     ` ROM: ${row.rom_version || "Unknown"}`,
-    ` Region: ${row.region || "Unknown"}`,
-    ` Android: ${normalizeAndroidTag(row.android)}`,
+    `Region: ${row.region || "Unknown"}`,
+    `Android: ${normalizeAndroidTag(row.android)}`,
     "",
     " Download:",
     row.drive_link,
