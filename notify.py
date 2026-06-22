@@ -277,8 +277,8 @@ def format_release_caption() -> str:
         f"<b>{html.escape(metadata['device_name'])}</b>\n"
         f"{html.escape(metadata['rom_version'])} •  {html.escape(metadata['region'])} •  {html.escape(metadata['android'])}\n\n"
         "Built from clean official base.\n"
-        "⚡ Optimized and repacked by <b>MEZO</b>.\n\n"
-        f"⬇️ <b>Download</b> <a href=\"{safe_link(drive_link)}\">Click here</a>\n\n"
+        "\u26a1 Optimized and repacked by <b>MEZO</b>.\n\n"
+        f"\u2b07\ufe0f <b>Download</b> <a href=\"{safe_link(drive_link)}\">Click here</a>\n\n"
         f"#{html.escape(metadata['codename_lower'])} #DeadZoneLite #MEZO"
     )
 
