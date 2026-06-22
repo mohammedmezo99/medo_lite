@@ -268,31 +268,18 @@ def format_release_caption() -> str:
     drive_link = metadata["drive_link"].strip()
     if not drive_link:
         raise RuntimeError("Missing Google Drive link")
-
-    mezo_contact_link = safe_link(os.environ.get("MEZO_CONTACT_LINK", ""))
-    discussion_link = safe_link(os.environ.get("CHAT_GROUP_LINK", ""))
-    changelog_link = safe_link(os.environ.get("CHANGELOG_LINK") or os.environ.get("UPDATES_GROUP_LINK", ""))
-    screenshots_link = safe_link(os.environ.get("SCREENSHOTS_POST_LINK") or os.environ.get("SCREENSHOTS_GROUP_LINK", ""))
-    download_link = safe_link(drive_link)
+    version = (metadata["version"] or "").strip()
+    if version[:1].lower() == "v":
+        version = f"V{version[1:]}"
 
     return (
-        f"<b>DeadZone Lite v{html.escape(metadata['version'])}</b>\n\n"
-        f"<b>{html.escape(metadata['hyperos_major'])}</b> • <b>{html.escape(metadata['rom_version'])}</b>\n"
-        f"<b>{html.escape(metadata['region'])}</b> • <b>{html.escape(metadata['android'])}</b> • <b>{html.escape(metadata['platform'])}</b>\n\n"
-        f"<b>Device</b>\n{html.escape(metadata['device_name'])}\n\n"
-        f"<b>Code Name</b>\n#{html.escape(metadata['codename_lower'])}\n\n"
-        f"<b>Release Date</b>\n{html.escape(metadata['date'])}\n\n"
-        f"<b>Base</b>\n{html.escape(metadata['region_base_text'])}\n\n"
-        f"<b>Developer</b> <a href=\"{mezo_contact_link}\">MEZO</a>\n\n"
-        f"<b>Changelog</b> <a href=\"{changelog_link}\">Here</a>\n"
-        f"<b>Download</b> <a href=\"{download_link}\">Here</a>\n"
-        f"<b>Screenshots</b> <a href=\"{screenshots_link}\">Here</a>\n"
-        f"<b>Discussion</b> <a href=\"{discussion_link}\">Here</a>\n\n"
-        f"#{html.escape(metadata['codename_lower'])} "
-        f"#{html.escape(metadata['os_tag'])} "
-        f"#{html.escape(metadata['hyperos_tag'])} "
-        f"#{html.escape(metadata['android_hash_tag'])} "
-        f"#DeadZone #DeadZoneLite #MEZO"
+        f"<b>DeadZone Lite {html.escape(version)}</b>\n\n"
+        f"<b>{html.escape(metadata['device_name'])}</b>\n"
+        f"{html.escape(metadata['rom_version'])} •  {html.escape(metadata['region'])} •  {html.escape(metadata['android'])}\n\n"
+        "Built from clean official base.\n"
+        "⚡ Optimized and repacked by <b>MEZO</b>.\n\n"
+        f"⬇️ <b>Download</b> <a href=\"{safe_link(drive_link)}\">Click here</a>\n\n"
+        f"#{html.escape(metadata['codename_lower'])} #DeadZoneLite #MEZO"
     )
 
 
