@@ -1,4 +1,8 @@
-name: DeadZone Xiaomi ROM Build 
+name: DeadZone Xiaomi ROM Build
+
+concurrency:
+  group: medo-lite-build-queue
+  cancel-in-progress: false
 
 on:
   workflow_dispatch:
@@ -40,9 +44,14 @@ jobs:
       UPDATES_GROUP_LINK: ${{ secrets.UPDATES_GROUP_LINK }}
       SCREENSHOTS_GROUP_LINK: ${{ secrets.SCREENSHOTS_GROUP_LINK }}
       CHAT_GROUP_LINK: ${{ secrets.CHAT_GROUP_LINK }}
+      CHANGELOG_LINK: ${{ secrets.CHANGELOG_LINK }}
+      SCREENSHOTS_POST_LINK: ${{ secrets.SCREENSHOTS_POST_LINK }}
       REQUEST_SOURCE: ${{ inputs.request_source }}
       PUBLISH_RELEASE: ${{ inputs.publish_release }}
     steps:
+      - name: Set current stage
+        run: echo "CURRENT_STAGE=checkout" >> "$GITHUB_ENV"
+
       - name: Clean All Unused file,application
         run: |
           docker rmi `docker images -q` || true
@@ -129,7 +138,9 @@ jobs:
           python3 notify.py private success
 
       - name: Release Notification
+        id: release_post
         if: success() && (startsWith(inputs.request_source, 'telegram') || inputs.publish_release == 'true')
+        continue-on-error: true
         run: |
           echo "CURRENT_STAGE=release_notification" >> "$GITHUB_ENV"
           python3 notify.py release success
@@ -138,6 +149,11 @@ jobs:
         if: success() && !(startsWith(inputs.request_source, 'telegram') || inputs.publish_release == 'true')
         run: |
           python3 notify.py private publish_prompt
+
+      - name: Release Failure Notification
+        if: steps.release_post.outcome == 'failure'
+        run: |
+          python3 notify.py private fail release_notification
 
       - name: Failure Notification
         if: failure()

@@ -12,14 +12,14 @@ ROOT = Path(__file__).resolve().parent
 TIMEOUT = 30
 RELEASE_IMAGE = ROOT / "assets" / "release" / "lite.png"
 
-PRIVATE_STAGE_MESSAGES = {
-    "request_received": "DeadZone Lite build request received",
-    "build_started": "Build started",
-    "packaging_started": "Packaging started",
-    "upload_started": "Upload started to Google Drive",
-    "success": "Build completed successfully",
-    "fail": "Build failed",
-    "publish_prompt": "Publish decision required",
+PRIVATE_STAGE_LABELS = {
+    "request_received": "📩 Request received",
+    "build_started": "🛠️ Build started",
+    "packaging_started": "📦 Packaging started",
+    "upload_started": "☁️ Uploading to Google Drive",
+    "success": "✅ Build completed",
+    "fail": "❌ Build failed",
+    "publish_prompt": "📢 Publish decision required",
 }
 
 REGION_MAP = {
@@ -206,64 +206,61 @@ def get_metadata() -> dict:
 
 def humanize_stage(stage: str) -> str:
     mapping = {
-        "checkout": "checkout",
-        "request_acknowledged": "request acknowledgement",
-        "install_dependencies": "dependency installation",
+        "checkout": "Checkout",
+        "request_acknowledged": "Request acknowledgement",
+        "install_dependencies": "Dependency installation",
         "parse_rom_metadata": "ROM metadata parsing",
-        "build": "build",
-        "package": "packaging",
-        "setup_rclone": "rclone setup",
+        "build": "Build",
+        "package": "Packaging",
+        "setup_rclone": "Rclone setup",
         "upload_drive": "Google Drive upload",
-        "release_post": "release notification",
-        "release_notification": "release notification",
+        "release_post": "Release notification",
+        "release_notification": "Release notification",
     }
-    return mapping.get((stage or "").strip(), stage or "unknown")
+    return mapping.get((stage or "").strip(), stage or "Unknown")
 
 
 def format_private_message(status: str, stage: str = "") -> str:
     metadata = get_metadata()
-    header = PRIVATE_STAGE_MESSAGES.get(status, "Status update")
-    details = []
+    current_stage = PRIVATE_STAGE_LABELS.get(status, "ℹ️ Status update")
     request_source = (os.environ.get("REQUEST_SOURCE") or "").strip().lower()
+    failure_stage = stage or os.environ.get("CURRENT_STAGE", "")
+
+    lines = [
+        "🔒 MEZO private live status",
+        "",
+        f"Current stage: {current_stage}",
+        f"Device: {metadata['device_name']}",
+        f"Codename: {metadata['codename']}",
+        f"ROM version: {metadata['rom_version']}",
+        f"Region: {metadata['region']}",
+        f"Android: {metadata['android']}",
+        f"Filename: {metadata['filename']}",
+    ]
 
     if status == "request_received":
         if request_source.startswith("telegram"):
-            details.append("DeadZone Lite request received from Telegram.")
+            lines.append("Source: Telegram")
         else:
-            details.append("Manual GitHub build request received.")
-    elif status == "build_started":
-        details.append(
-            f"Build started for {metadata['codename']} | {metadata['rom_version']} | {metadata['region']} | {metadata['android']}"
-        )
-    elif status == "packaging_started":
-        details.append(f"Packaging started for {metadata['filename']}")
-    elif status == "upload_started":
-        details.append(f"Preparing to upload {metadata['filename']}")
-    elif status == "success":
-        details.append(f"File: {metadata['filename']}")
-        details.append(f"Device: {metadata['codename']}")
-        details.append(f"ROM Version: {metadata['rom_version']}")
-        details.append(f"Region: {metadata['region']}")
-        details.append(f"Android: {metadata['android']}")
-        if metadata["drive_link"]:
-            details.append(f"Drive Link: {metadata['drive_link']}")
-    elif status == "publish_prompt":
-        details.append("Manual GitHub build completed.")
-        details.append("This build was uploaded but not posted publicly.")
-        details.append(f"File: {metadata['filename']}")
-        details.append(f"Device: {metadata['codename']}")
-        details.append(f"ROM Version: {metadata['rom_version']}")
-        details.append(f"Region: {metadata['region']}")
-        details.append(f"Android: {metadata['android']}")
-        if metadata["drive_link"]:
-            details.append(f"Drive Link: {metadata['drive_link']}")
-        details.append("Publish to release channel? Yes / No")
+            lines.append("Source: Manual GitHub build")
     elif status == "fail":
-        failure_stage = stage or os.environ.get("CURRENT_STAGE", "unknown")
-        details.append(f"Stage: {humanize_stage(failure_stage)}")
-        details.append("Please check the build environment.")
+        lines.append(f"Failed stage: {humanize_stage(failure_stage)}")
+    elif status == "publish_prompt":
+        lines.append("Manual GitHub build completed.")
+        lines.append("This build was uploaded but not posted publicly.")
+        lines.append("Publish to release channel? Yes / No")
 
-    return "\n".join([header, *details])
+    if metadata["drive_link"]:
+        lines.append(f"Drive link: {metadata['drive_link']}")
+    elif status in {"upload_started", "success", "publish_prompt"}:
+        lines.append("Drive link: Pending")
+
+    if status == "success" and not (request_source.startswith("telegram") or os.environ.get("PUBLISH_RELEASE") == "true"):
+        lines.append("Release post: Skipped")
+    elif status == "success":
+        lines.append("Release post: Automatic")
+
+    return "\n".join(lines)
 
 
 def format_release_caption() -> str:
@@ -299,10 +296,14 @@ def format_release_caption() -> str:
     )
 
 
-def send_telegram_message(chat_id: str, text: str, parse_mode: str | None = None) -> None:
+def telegram_api_url(method: str) -> str:
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not bot_token:
         raise RuntimeError("Missing TELEGRAM_BOT_TOKEN")
+    return f"https://api.telegram.org/bot{bot_token}/{method}"
+
+
+def send_telegram_message(chat_id: str, text: str, parse_mode: str | None = None) -> int:
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -310,21 +311,44 @@ def send_telegram_message(chat_id: str, text: str, parse_mode: str | None = None
     }
     if parse_mode:
         payload["parse_mode"] = parse_mode
-    response = requests.post(
-        f"https://api.telegram.org/bot{bot_token}/sendMessage",
-        json=payload,
-        timeout=TIMEOUT,
-    )
+    response = requests.post(telegram_api_url("sendMessage"), json=payload, timeout=TIMEOUT)
     response.raise_for_status()
+    data = response.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Telegram sendMessage failed: {data}")
+    message_id = data.get("result", {}).get("message_id")
+    if message_id is None:
+        raise RuntimeError("Telegram sendMessage did not return message_id")
+    return int(message_id)
+
+
+def edit_telegram_message(chat_id: str, message_id: str, text: str, parse_mode: str | None = None) -> bool:
+    payload = {
+        "chat_id": chat_id,
+        "message_id": int(message_id),
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
+    response = requests.post(telegram_api_url("editMessageText"), json=payload, timeout=TIMEOUT)
+    data = {}
+    try:
+        data = response.json()
+    except Exception:
+        data = {}
+    if not response.ok:
+        description = str(data.get("description", ""))
+        if "message is not modified" in description.lower():
+            return True
+        return False
+    return bool(data.get("ok"))
 
 
 def send_telegram_photo(chat_id: str, caption: str, image_path: Path) -> None:
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    if not bot_token:
-        raise RuntimeError("Missing TELEGRAM_BOT_TOKEN")
     with image_path.open("rb") as image_file:
         response = requests.post(
-            f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+            telegram_api_url("sendPhoto"),
             data={
                 "chat_id": chat_id,
                 "caption": caption,
@@ -341,7 +365,21 @@ def handle_private(status: str, stage: str = "") -> None:
     chat_id = os.environ.get("MEZO_PRIVATE_CHAT_ID")
     if not chat_id:
         raise RuntimeError("Missing MEZO_PRIVATE_CHAT_ID")
-    send_telegram_message(chat_id, format_private_message(status, stage))
+
+    text = format_private_message(status, stage)
+    message_id = os.environ.get("MEZO_PRIVATE_MESSAGE_ID", "").strip()
+
+    if status == "request_received" or not message_id:
+        new_message_id = send_telegram_message(chat_id, text)
+        write_github_env("MEZO_PRIVATE_MESSAGE_ID", str(new_message_id))
+        return
+
+    if edit_telegram_message(chat_id, message_id, text):
+        write_github_env("MEZO_PRIVATE_MESSAGE_ID", str(message_id))
+        return
+
+    new_message_id = send_telegram_message(chat_id, text)
+    write_github_env("MEZO_PRIVATE_MESSAGE_ID", str(new_message_id))
 
 
 def handle_release() -> None:
@@ -365,7 +403,8 @@ def usage() -> str:
         "  python notify.py private <request_received|build_started|packaging_started|upload_started|success|fail> [stage]\n"
         "  python notify.py private publish_prompt\n"
         "  python notify.py release success\n"
-        "  python notify.py filename"
+        "  python notify.py filename\n"
+        "  python notify.py build [...legacy-args]"
     )
 
 
@@ -396,6 +435,10 @@ def main() -> int:
         metadata = get_metadata()
         print(metadata["filename"])
         write_github_env("FINAL_ROM_FILENAME", metadata["filename"])
+        return 0
+
+    if mode == "build":
+        handle_private("build_started")
         return 0
 
     print(usage())
