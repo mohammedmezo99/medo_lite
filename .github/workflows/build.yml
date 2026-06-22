@@ -1,0 +1,92 @@
+name: DeadZone Xiaomi ROM Build 
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_url:
+        description: 'URL of the ROM to build'
+        required: true
+      builder_name:
+        description: 'Name of the builder'
+        required: false
+      builder_id:
+        description: 'ID of the builder'
+        required: false
+      
+jobs:
+  Initialize:
+    runs-on: ubuntu-latest
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+    steps:
+      - name: Clean All Unused file,application
+        run: |
+          docker rmi `docker images -q` || true
+          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/sudo apt/sources.list.d || true
+          sudo apt -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell mysql* php* || true
+          sudo apt -y autoremove --purge || true
+          sudo apt -y autoclean || true
+          sudo apt clean || true
+
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          swap-size-mb: 1024
+          root-reserve-mb: 512
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+
+      - name: Set up Time
+        run: |
+          echo "Setting Vienam timezone"
+          sudo timedatectl set-timezone Asia/Ho_Chi_Minh
+          
+      - name: Install OpenJDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Install Stuff & Start Notify
+        run: |
+          pip install requests
+          sudo bash setup.sh
+          python notify.py start "${{ github.repository }}" "${{ inputs.input_url }}" "xst" "${{ inputs.builder_name }}" "${{ inputs.builder_id }}"
+        
+      - name: Giving permission
+        run: |
+          sudo chmod 777 -R *
+
+      - name: Build ROM...
+        env:
+          INPUT_URL: ${{ inputs.input_url }}
+        run: |
+          sudo bash build.sh "$INPUT_URL" "${{ github.repository }}" "xst" "${{ inputs.builder_name }}" "${{ inputs.builder_id }}"
+
+      - name: Pack ROM...
+        run: |
+          sudo bash packROM.sh
+
+      - name: Setup Rclone...
+        run: |
+          sudo -E bash uploadROM.sh setup "${{ secrets.GH_TOKEN }}" "${{ secrets.GH_REPO }}" "${{ secrets.RCLONE_TOKEN_PATH }}"
+          
+      - name: Upload ROM...
+        run: |
+          python notify.py upload "${{ github.repository }}" "${{ inputs.input_url }}" "xst" "${{ inputs.builder_name }}" "${{ inputs.builder_id }}"
+          sudo -E bash uploadROM.sh
+      
+      - name: Success Notification
+        if: success()
+        run: |
+          python notify.py success "${{ github.repository }}" "${{ inputs.input_url }}" "xst" "${{ inputs.builder_name }}" "${{ inputs.builder_id }}"
+
+      - name: Failure Notification
+        if: failure()
+        run: |
+          python notify.py fail "${{ github.repository }}" "${{ inputs.input_url }}" "xst" "${{ inputs.builder_name }}" "${{ inputs.builder_id }}"
