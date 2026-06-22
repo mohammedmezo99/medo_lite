@@ -27,16 +27,30 @@ export default {
     }
 
     const message = update?.message;
+    const hasText = typeof message?.text === "string";
+    const chatId = String(message?.chat?.id ?? "");
+    const expectedChatId = String(env.TELEGRAM_CHAT_GROUP_ID ?? "");
+    console.log("[worker] webhook update", {
+      chatId,
+      expectedTelegramChatGroupId: expectedChatId,
+      hasText,
+    });
+
     if (!message || typeof message.text !== "string") {
       return new Response("OK", { status: 200 });
     }
 
-    const chatId = String(message.chat?.id ?? "");
-    if (!chatId || chatId !== String(env.TELEGRAM_CHAT_GROUP_ID ?? "")) {
+    if (!chatId || chatId !== expectedChatId) {
       return new Response("OK", { status: 200 });
     }
 
     const parsed = parseMezoCommand(message.text);
+    console.log("[worker] command parse", {
+      chatId,
+      parsedMezoCommand: parsed.isCommand,
+      romLinkValid: Boolean(parsed.romLink),
+    });
+
     if (!parsed.isCommand) {
       return new Response("OK", { status: 200 });
     }
@@ -153,8 +167,43 @@ async function dispatchWorkflow(env, romLink, builderName, builderId) {
       }),
     });
 
+    console.log("[worker] GitHub dispatch response", {
+      status: response.status,
+      ok: response.ok,
+    });
+    await logSafeDispatchResponseText(response, env);
+
     return response.ok;
-  } catch {
+  } catch (error) {
+    console.warn("[worker] GitHub dispatch exception", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
+}
+
+async function logSafeDispatchResponseText(response, env) {
+  const responseText = await response.text();
+  if (!responseText) {
+    return;
+  }
+
+  if (containsSensitiveValue(responseText, env)) {
+    console.warn("[worker] GitHub dispatch response text omitted because it may contain sensitive data");
+    return;
+  }
+
+  console.log("[worker] GitHub dispatch response text", responseText);
+}
+
+function containsSensitiveValue(text, env) {
+  const sensitiveValues = [
+    env.TELEGRAM_BOT_TOKEN,
+    env.GITHUB_TOKEN,
+    env.TELEGRAM_WEBHOOK_SECRET,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value));
+
+  return sensitiveValues.some((value) => value && text.includes(value));
 }
