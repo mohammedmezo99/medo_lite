@@ -221,7 +221,7 @@ async function handleBuildCommand(env, message, args) {
     await sendTelegramMessage(
       env,
       chatId,
-      `\u274C No OTA ROMs found for ${parsed.codename.toUpperCase()} in region: ${parsed.region}.\nUse /regions ${parsed.codename} to see available regions.`,
+      `❌ No OTA ROMs found for ${parsed.codename.toUpperCase()} in region: ${parsed.region}.\nUse /regions ${parsed.codename} to see available regions.`,
       message.message_id,
     );
     return okResponse();
@@ -260,7 +260,7 @@ async function handleRomsCommand(env, args) {
   }
   if (roms.length === 0) {
     return regionFilter
-      ? `\u274C No OTA ROMs found for ${codename.toUpperCase()} in region: ${regionFilter}.\nUse /regions ${codename} to see available regions.`
+      ? `❌ No OTA ROMs found for ${codename.toUpperCase()} in region: ${regionFilter}.\nUse /regions ${codename} to see available regions.`
       : buildNoRomsMessage(codename);
   }
 
@@ -301,7 +301,7 @@ async function handleRegionsCommand(env, args) {
   }
   const regions = sortRegions(uniqueValues(roms.map((rom) => rom.region)));
   if (regions.length === 0) {
-    return `\u274C No regions found for ${codename.toUpperCase()}.\nCheck the codename and try again.`;
+    return `❌ No regions found for ${codename.toUpperCase()}.\nCheck the codename and try again.`;
   }
 
   return [
@@ -327,7 +327,7 @@ async function handleDeviceCommand(env, args) {
     return "⚠️ ROM source is temporarily unavailable.\nPlease try again later.";
   }
   if (roms.length === 0) {
-    return `\u274C No device data found for ${codename.toUpperCase()}.\nCheck the codename and try again.`;
+    return `❌ No device data found for ${codename.toUpperCase()}.\nCheck the codename and try again.`;
   }
 
   const latest = roms[0];
@@ -365,7 +365,7 @@ async function formatLatestBuild(env) {
   }
 
   return [
-    "\u2705 Latest DeadZone Lite Build",
+    "✅ Latest DeadZone Lite Build",
     "",
     ` Device: ${row.device_name || "Unknown"}`,
     ` ROM: ${row.rom_version || "Unknown"}`,
@@ -437,7 +437,7 @@ async function formatFailedBuilds(env) {
     return "ℹ️ No failed builds found.";
   }
 
-  const lines = ["\u274C Failed Builds", ""];
+  const lines = ["❌ Failed Builds", ""];
   rows.forEach((row, index) => {
     lines.push(`${index + 1}.  ${(row.device_codename || "UNKNOWN").toUpperCase()} • ${row.status || "failed"}`);
   });
@@ -879,7 +879,7 @@ function splitArgs(args) {
 }
 
 function buildNoRomsMessage(codename) {
-  return `\u274C No OTA ROMs found for ${codename.toUpperCase()}.\nCheck the codename and try again.`;
+  return `❌ No OTA ROMs found for ${codename.toUpperCase()}.\nCheck the codename and try again.`;
 }
 
 function romToBuildMetadata(rom) {
