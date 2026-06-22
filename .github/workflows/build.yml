@@ -2,6 +2,7 @@ name: DeadZone Xiaomi ROM Build
 
 concurrency:
   group: medo-lite-build-queue
+  queue: max
   cancel-in-progress: false
 
 on:
