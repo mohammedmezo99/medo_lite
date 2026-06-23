@@ -141,16 +141,25 @@ jobs:
         run: |
           python3 notify.py private success
 
+      - name: Resolve release publishing
+        if: success()
+        run: |
+          if [[ "${REQUEST_SOURCE}" == telegram* || "${PUBLISH_RELEASE}" == "true" ]]; then
+            echo "AUTO_PUBLISH_RELEASE=true" >> "$GITHUB_ENV"
+          else
+            echo "AUTO_PUBLISH_RELEASE=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Release Notification
         id: release_post
-        if: success() && (startsWith(inputs.request_source, 'telegram') || inputs.publish_release == 'true')
+        if: success() && env.AUTO_PUBLISH_RELEASE == 'true'
         continue-on-error: true
         run: |
           echo "CURRENT_STAGE=release_notification" >> "$GITHUB_ENV"
           python3 notify.py release success
 
       - name: Publish Prompt Notification
-        if: success() && !(startsWith(inputs.request_source, 'telegram') || inputs.publish_release == 'true')
+        if: success() && env.AUTO_PUBLISH_RELEASE != 'true'
         run: |
           python3 notify.py private publish_prompt
 

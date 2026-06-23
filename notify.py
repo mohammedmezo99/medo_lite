@@ -245,6 +245,9 @@ def format_private_message(status: str, stage: str = "") -> str:
             lines.append("Source: Manual GitHub build")
     elif status == "fail":
         lines.append(f"Failed stage: {humanize_stage(failure_stage)}")
+        if failure_stage == "release_notification":
+            lines.append("Release notification failed.")
+            lines.append("Check TELEGRAM_RELEASE_GROUP_ID, TELEGRAM_CHAT_GROUP_ID, and bot admin/send permissions.")
     elif status == "publish_prompt":
         lines.append("Manual GitHub build completed.")
         lines.append("This build was uploaded but not posted publicly.")
@@ -405,9 +408,11 @@ def handle_private(status: str, stage: str = "") -> None:
 
 
 def handle_release() -> None:
-    chat_id = os.environ.get("TELEGRAM_RELEASE_GROUP_ID")
+    chat_id = (os.environ.get("TELEGRAM_RELEASE_GROUP_ID") or "").strip()
     if not chat_id:
-        raise RuntimeError("Missing TELEGRAM_RELEASE_GROUP_ID")
+        chat_id = (os.environ.get("TELEGRAM_CHAT_GROUP_ID") or "").strip()
+    if not chat_id:
+        raise RuntimeError("Missing TELEGRAM_RELEASE_GROUP_ID or TELEGRAM_CHAT_GROUP_ID")
     caption = format_release_caption()
     if RELEASE_IMAGE.is_file():
         try:
