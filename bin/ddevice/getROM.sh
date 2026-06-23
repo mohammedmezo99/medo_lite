@@ -6,8 +6,13 @@ source $work_dir/functions.sh
 # Check whether it is a local package or a link
 if [ ! -f "${baserom}" ] && [ "$(echo $baserom |grep http)" != "" ]; then
     info "Download link detected, starting a download..."
-    aria2c --continue=true --auto-file-renaming=false --allow-overwrite=true --file-allocation=none --connect-timeout=15 --timeout=30 --lowest-speed-limit=512K --max-tries=4 --retry-wait=5 -s10 -x10 -j1 --max-download-limit=1024M ${baserom}
-    baserom=$(basename ${baserom} | sed 's/\?t.*//')
+    downloaded_baserom="$(basename "${baserom%%\?*}")"
+    if ! aria2c --max-download-limit=1024M --file-allocation=none --continue=true --auto-file-renaming=false --allow-overwrite=true --connect-timeout=15 --timeout=60 --max-tries=5 --retry-wait=10 -s10 -x10 -j10 "${baserom}"; then
+        echo "Download failed"
+        rm -f "$downloaded_baserom" "$downloaded_baserom.aria2"
+        exit 1
+    fi
+    baserom="$downloaded_baserom"
     if [ -f $work_dir/topaz-ota_full-OS3.0.2.0.WMGCNXM-user-16.0-b487e82659.zip ]; then
         baserom="topaz-ota_full-OS3.0.2.0.WMGCNXM-user-16.0-b487e82659.zip"
         info "BASEROM: ${baserom}"
@@ -16,6 +21,11 @@ if [ ! -f "${baserom}" ] && [ "$(echo $baserom |grep http)" != "" ]; then
         info "BASEROM: ${baserom}"
     elif [ ! -f "${baserom}" ]; then
         error "Download error!"
+    fi
+    if ! unzip -tq "$baserom" >/dev/null; then
+        echo "Downloaded ROM ZIP is incomplete or corrupt"
+        rm -f "$baserom" "$baserom.aria2"
+        exit 1
     fi
 elif [ -f "${baserom}" ]; then
     info "BASEROM: ${baserom}"
@@ -99,4 +109,3 @@ echo $base_rom_code > $work_dir/bin/ddevice/os_code.txt
 echo $device_code > $work_dir/bin/ddevice/device_code.txt
 echo $DEVICE_TYPE > $work_dir/bin/ddevice/device_type.txt
 echo $ROM_OS > $work_dir/bin/ddevice/rom_os.txt
-
