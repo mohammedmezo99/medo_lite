@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # Provision Lite mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: only patches Provision.apk strings.
 # Target path priority: system_ext/priv-app/Provision.apk
@@ -38,19 +38,8 @@ cleanup() {
 trap cleanup EXIT
 
 find_apk_editor() {
-    local candidate
-    for candidate in \
-        "$work_dir/APKEditor.jar" \
-        "$SCRIPT_DIR/APKEditor.jar" \
-        "$SCRIPT_DIR/Lite/APKEditor.jar" \
-        "$SCRIPT_DIR/Lite/Provision_Lite/APKEditor.jar"; do
-        if [[ -f "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-    candidate="$(find "$work_dir" -maxdepth 5 -type f -name 'APKEditor.jar' 2>/dev/null | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
+    local candidate="$work_dir/bin/apktool/APKEditor.jar"
+    if [[ -f "$candidate" ]]; then
         echo "$candidate"
         return 0
     fi
@@ -229,3 +218,4 @@ cp -f "$OUT_APK" "$TARGET_APK"
 chmod "$OLD_MODE" "$TARGET_APK" 2>/dev/null || true
 
 mod_log "Provision Lite strings patch applied successfully."
+

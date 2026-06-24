@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # SystemUI VoLTE CN mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: patches MiuiSystemUI.apk only.
 # Goal: Hide 4G icon and show VoLTE on Statusbar for OS2/OS3 China ROMs.
@@ -38,18 +38,8 @@ cleanup() {
 trap cleanup EXIT
 
 find_apk_editor() {
-    local candidate
-    for candidate in \
-        "$work_dir/APKEditor.jar" \
-        "$SCRIPT_DIR/APKEditor.jar" \
-        "$SCRIPT_DIR/Lite/APKEditor.jar"; do
-        if [[ -f "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-    candidate="$(find "$work_dir" -maxdepth 5 -type f -name 'APKEditor.jar' 2>/dev/null | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
+    local candidate="$work_dir/bin/apktool/APKEditor.jar"
+    if [[ -f "$candidate" ]]; then
         echo "$candidate"
         return 0
     fi
@@ -233,3 +223,4 @@ cp -f "$OUT_APK" "$TARGET_APK"
 chmod "$OLD_MODE" "$TARGET_APK" 2>/dev/null || true
 
 mod_log "SystemUI VoLTE CN patch applied successfully."
+

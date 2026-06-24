@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # SystemUI Lite mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: only patches MiuiSystemUI.apk.
 set -euo pipefail
@@ -38,19 +38,8 @@ cleanup() {
 trap cleanup EXIT
 
 find_apk_editor() {
-    local candidate
-    for candidate in \
-        "$work_dir/APKEditor.jar" \
-        "$SCRIPT_DIR/APKEditor.jar" \
-        "$SCRIPT_DIR/Lite/APKEditor.jar" \
-        "$ASSET_DIR/APKEditor.jar"; do
-        if [[ -f "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-    candidate="$(find "$work_dir" -maxdepth 4 -type f -name 'APKEditor.jar' 2>/dev/null | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
+    local candidate="$work_dir/bin/apktool/APKEditor.jar"
+    if [[ -f "$candidate" ]]; then
         echo "$candidate"
         return 0
     fi
@@ -205,3 +194,4 @@ rm -f "$TARGET_APK"
 cp -f "$OUT_APK" "$TARGET_APK"
 chmod "$OLD_MODE" "$TARGET_APK" 2>/dev/null || true
 lite_log "SystemUI Lite applied successfully."
+
