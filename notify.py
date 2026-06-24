@@ -282,40 +282,21 @@ def format_release_caption() -> str:
     developer_link = "https://t.me/MohamedMezo1"
 
     return (
-        f"🚀 <b>DeadZone Lite {html.escape(version)} Released</b>
-
-"
-        f"📱 <b>Device:</b> {html.escape(metadata['device_name'])}
-"
-        f"🧩 <b>Codename:</b> #{html.escape(metadata['codename_lower'])}
-"
-        f"⚙️ <b>ROM:</b> {html.escape(metadata['rom_version'])}
-"
-        f"🌍 <b>Region:</b> {html.escape(metadata['region'])}
-"
-        f"🤖 <b>Android:</b> {html.escape(metadata['android'])}
-
-"
-        "━━━━━━━━━━━━━━━
-
-"
-        f"📋 <a href=\"{safe_link(changelog_link)}\">Changelogs</a>
-"
-        f"👨‍💻 <a href=\"{safe_link(developer_link)}\">Developer MEZO</a>
-
-"
-        "━━━━━━━━━━━━━━━
-
-"
-        f"⬇️ <b>Download:</b> <a href=\"{safe_link(drive_link)}\">Click Here</a>
-
-"
-        "━━━━━━━━━━━━━━━
-"
+        f"🚀 <b>DeadZone Lite {html.escape(version)} Released</b>\n\n"
+        f"📱 <b>Device:</b> {html.escape(metadata['device_name'])}\n"
+        f"🧩 <b>Codename:</b> #{html.escape(metadata['codename_lower'])}\n"
+        f"⚙️ <b>ROM:</b> {html.escape(metadata['rom_version'])}\n"
+        f"🌍 <b>Region:</b> {html.escape(metadata['region'])}\n"
+        f"🤖 <b>Android:</b> {html.escape(metadata['android'])}\n\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        f"📋 <a href=\"{safe_link(changelog_link)}\">Changelogs</a>\n"
+        f"👨‍💻 <a href=\"{safe_link(developer_link)}\">Developer MEZO</a>\n\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        f"⬇️ <b>Download:</b> <a href=\"{safe_link(drive_link)}\">Click Here</a>\n\n"
+        "━━━━━━━━━━━━━━━\n"
         f"#{html.escape(metadata['codename_lower'])} #DeadZoneLite "
-        f"#{html.escape(metadata['os_tag'])} #{html.escape(metadata['android_hash_tag'])} #MEZO"
+        f"#{html.escape(metadata['hyperos_tag'])} #{html.escape(metadata['android_hash_tag'])} #MEZO"
     )
-
 
 
 def telegram_api_url(method: str) -> str:
