@@ -1,0 +1,17 @@
+
+com.android.settings/color/type-info
+
+    <entry id="0x7f060e98" name="option_border_color" />
+    <entry id="0x7f060e99" name="option_grid_icon_color" />
+    <entry id="0x7f060e9a" name="signals_bg_color" />
+    <entry id="0x7f060e9b" name="tab_text_normal_color" />
+
+
+com.android.settings/color/color
+    
+    <color name="option_border_color">res/color/option_border_color.xml</color>
+    <color name="option_grid_icon_color">res/color/option_grid_icon_color.xml</color>
+    <color name="signals_bg_color">#0106002b</color>
+    <color name="tab_text_normal_color">#000000</color>
+    
+</resources>    

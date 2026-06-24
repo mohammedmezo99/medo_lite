@@ -1,0 +1,15 @@
+
+com.android.settings/id/type-info
+
+    <entry id="0x7f0b0f91" name="mezo_settings_preference" />
+    <entry id="0x7f0b0f98" name="image4" />
+    <entry id="0x7f0b0f99" name="option_label" />
+    <entry id="0x7f0b0f9b" name="shape" />
+    
+com.android.settings/id/id
+
+    <id name="mezo_settings_preference" />
+    <id name="image4" />
+    <id name="option_label" />
+    <id name="shape" />
+    

@@ -1,0 +1,14 @@
+
+
+com.android.settings/xml/type-info
+
+    <entry id="0x7f1802ae" name="account_settings_details" />
+    <entry id="0x7f1802af" name="mezo_settings" />
+    
+
+
+com.android.settings/xml/xml
+
+    <path name="account_settings_details">res/xml/account_settings_details.xml</path>
+    <path name="mezo_settings">res/xml/mezo_settings.xml</path>
+    

@@ -1,0 +1,21 @@
+
+com.android.settings/layout/type-info
+
+    <entry id="0x7f0e0714" name="icon_option_battery" />
+    <entry id="0x7f0e0715" name="icon_option_fod" />
+    <entry id="0x7f0e0716" name="icon_option_nav" />
+    <entry id="0x7f0e0717" name="icon_option_vowifi" />
+    <entry id="0x7f0e0718" name="icon_option_wifi" />
+    <entry id="0x7f0e0719" name="item_view" />
+  
+    
+      
+com.android.settings/layout/layout
+        
+    <path name="icon_option_battery">res/layout/icon_option_battery.xml</path>
+    <path name="icon_option_fod">res/layout/icon_option_fod.xml</path>
+    <path name="icon_option_nav">res/layout/icon_option_nav.xml</path>
+    <path name="icon_option_vowifi">res/layout/icon_option_vowifi.xml</path>
+    <path name="icon_option_wifi">res/layout/icon_option_wifi.xml</path>
+    <path name="item_view">res/layout/item_view.xml</path>
+                

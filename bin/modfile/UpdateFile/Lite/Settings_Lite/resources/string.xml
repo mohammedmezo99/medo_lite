@@ -1,0 +1,12 @@
+
+com.android.settings/string/type-info
+
+
+    <entry id="0x7f153680" name="mezo" />
+    
+    
+ com.android.settings/string/string   
+ 
+     <string name="mezo">DeadZone </string>
+     
+     

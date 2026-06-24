@@ -1,0 +1,27 @@
+
+com.android.systemui/drawable/drawable
+
+    <path name="battery_style">res/drawable/battery_style.png</path>
+    
+com.android.systemui/drawable/drawable-night
+
+        <path name="battery_style">res/drawable-night/battery_style.png</path>
+        
+com.android.systemui/drawable/drawable-nodpi  
+
+    <path name="ic_signal_cellular_0_5_bar">res/drawable-nodpi/ic_signal_cellular_0_5_bar.xml</path>
+    <path name="ic_signal_cellular_1_5_bar">res/drawable-nodpi/ic_signal_cellular_1_5_bar.xml</path>
+    <path name="ic_signal_cellular_3_5_bar">res/drawable-nodpi/ic_signal_cellular_3_5_bar.xml</path>
+    <path name="ic_signal_cellular_5_5_bar">res/drawable-nodpi/ic_signal_cellular_5_5_bar.xml</path>
+    <path name="volte_style_img">res/drawable-nodpi/volte_style_img.xml</path>
+         
+          
+           
+    com.android.systemui/drawable/type-info        
+             
+    <entry id="0x7f080101" name="battery_style" />              
+    <entry id="0x7f080108" name="ic_signal_cellular_0_5_bar" />
+    <entry id="0x7f080109" name="ic_signal_cellular_1_5_bar" />
+    <entry id="0x7f08010a" name="ic_signal_cellular_3_5_bar" />
+    <entry id="0x7f08010b" name="ic_signal_cellular_5_5_bar" />
+    <entry id="0x7f0806ca" name="volte_style_img" />                    

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="4dp"
+                android:color="#FF34DBA0" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:state_activated="false">
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="4dp"
+                android:color="@color/sos_player_linear_bg" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</selector>

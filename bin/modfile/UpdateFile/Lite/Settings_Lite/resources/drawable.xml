@@ -1,0 +1,20 @@
+
+com.android.settings/drawable/type-info
+
+
+    <entry id="0x7f0817d3" name="icon_background" />
+    <entry id="0x7f0817d4" name="icon_background1" />
+    <entry id="0x7f0817d6" name="option_border_custom" />
+    <entry id="0x7f0817d7" name="option_border_edge_custom" />
+
+
+com.android.settings/drawable/drawable
+
+
+    <path name="icon_background">res/drawable/icon_background.xml</path>
+    <path name="icon_background1">res/drawable/icon_background1.xml</path>
+    <path name="option_border_custom">res/drawable/option_border_custom.xml</path>
+    <path name="option_border_edge_custom">res/drawable/option_border_edge_custom.xml</path>
+        
+    
+    
