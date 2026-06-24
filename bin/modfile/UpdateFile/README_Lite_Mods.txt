@@ -22,3 +22,13 @@ Requirements in build environment:
 - Finds sget-boolean vX/pX, Lmiui/os/Build;->IS_INTERNATIONAL_BUILD:Z
   in target SystemUI classes and inserts const/4 using the same register.
 - Idempotent: skips if the exact const/4 line is already present.
+
+40_Provision_Lite.sh
+- Independent Provision.apk mod.
+- Preferred target: build/baserom/images/system_ext/**/priv-app/**/Provision.apk.
+- Decompiles Provision.apk, patches startup/provision completion strings, rebuilds and restores the APK.
+- Exact strings patched:
+  miui14_global_start_up_slogan = Lets rock with MEZO Development Project
+  miui14_start_up_slogan = Lets rock with MEZO Development Project
+  provision_complete_text = Ready to Rock with DeadZoneROM!
+- Also patches similar string names that match start_up_slogan or provision complete text patterns.
