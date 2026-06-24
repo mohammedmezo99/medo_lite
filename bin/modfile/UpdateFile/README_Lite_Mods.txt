@@ -15,3 +15,10 @@ Execution:
 Requirements in build environment:
 - `APKEditor.jar` must exist in repo root or inside UpdateFile/Lite.
 - Java must be available.
+
+21_SystemUI_VoLTE_CN.sh
+- Independent MiuiSystemUI.apk patch.
+- OS2/OS3 China ROMs only.
+- Finds sget-boolean vX/pX, Lmiui/os/Build;->IS_INTERNATIONAL_BUILD:Z
+  in target SystemUI classes and inserts const/4 using the same register.
+- Idempotent: skips if the exact const/4 line is already present.
