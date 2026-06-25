@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # SystemUI VoLTE CN mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: patches MiuiSystemUI.apk only.
 # Goal: Hide 4G icon and show VoLTE on Statusbar for OS2/OS3 China ROMs.

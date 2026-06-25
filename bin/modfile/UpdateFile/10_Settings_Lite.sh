@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # Settings Lite mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: only patches Settings.apk.
 set -euo pipefail

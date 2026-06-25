@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # Provision Lite mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: only patches Provision.apk strings.
 # Target path priority: system_ext/priv-app/Provision.apk

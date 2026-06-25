@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # SystemUI Lite mod for DeadZone/MEZO UpdateFile pipeline.
 # Independent script: only patches MiuiSystemUI.apk.
 set -euo pipefail
