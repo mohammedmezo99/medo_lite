@@ -64,7 +64,30 @@ else
     base_rom_code="Unknown"
 fi
 
-device_f=$(echo $device_code | sed 's/\(Global\|EEAGlobal\|INGlobal\|IDGlobal\|RUGlobal\|TWGlobal\|TRGlobal\|JPGlobal\)$//' | tr '[:upper:]' '[:lower:]')
+device_f=$(python3 - "$device_code" << 'PY'
+import re
+import sys
+
+value = sys.argv[1].strip().lower()
+value = re.sub(r"[^a-z0-9]+", "", value)
+
+for suffix in (
+    "eeaglobal",
+    "inglobal",
+    "idglobal",
+    "ruglobal",
+    "twglobal",
+    "trglobal",
+    "jpglobal",
+    "global",
+):
+    if value.endswith(suffix):
+        value = value[:-len(suffix)]
+        break
+
+print(value or "unknown")
+PY
+)
 
 # Determine Device Type
 info "Get Device Type"
@@ -76,14 +99,14 @@ elif echo "$device_code" | grep -q 'IDGlobal'; then
     DEVICE_TYPE="IDGlobal"
 elif echo "$device_code" | grep -q 'RUGlobal'; then
     DEVICE_TYPE="RUGlobal"
-elif echo "$device_code" | grep -q 'JPGlobal'; then
-    DEVICE_TYPE="JPGlobal"
-elif echo "$device_code" | grep -q 'Global'; then
-    DEVICE_TYPE="Global"
 elif echo "$device_code" | grep -q 'TWGlobal'; then
     DEVICE_TYPE="TWGlobal"
 elif echo "$device_code" | grep -q 'TRGlobal'; then
     DEVICE_TYPE="TRGlobal"
+elif echo "$device_code" | grep -q 'JPGlobal'; then
+    DEVICE_TYPE="JPGlobal"
+elif echo "$device_code" | grep -q 'Global'; then
+    DEVICE_TYPE="Global"
 else
     DEVICE_TYPE="China"
 fi

@@ -1,4 +1,5 @@
 import html
+import json
 import os
 import re
 import sys
@@ -179,7 +180,8 @@ def get_metadata() -> dict:
     region = normalize_region(read_text("bin/ddevice/region.txt") or read_text("bin/ddevice/device_type.txt", "Unknown"))
     android = normalize_android(read_text("bin/ddevice/android_version.txt") or read_text("bin/ddevice/androidver.txt", ""))
     platform = read_text("bin/ddevice/platform.txt") or derive_platform(rom_version)
-    device_name = clean_device_name(read_text("bin/ddevice/device_name.txt") or read_text("bin/ddevice/name_devices.txt", "Unknown Xiaomi Device"))
+    raw_device_name = clean_device_name(read_text("bin/ddevice/device_name.txt") or read_text("bin/ddevice/name_devices.txt", "Unknown Xiaomi Device"))
+    device_name = canonical_device_name(codename, raw_device_name)
     filename = read_text("bin/ddevice/output_zip.txt")
     if not filename:
         filename = build_output_filename(version, codename, rom_version, region, android)
