@@ -15,23 +15,26 @@ Example:
 /build zircon china`;
 const DISPATCH_FAILURE_MESSAGE = "Build request could not be started. Please contact MEZO.";
 const ACK_MESSAGE = "\u{1F4E5} Link received by MEZO.\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.";
-const HELP_MESSAGE = `🔥 DeadZone Lite Bot
+const HELP_MESSAGE = `🔥 <b>DeadZone Bot</b>
 
-⚡ Available now:
-• DeadZone Lite ROM Builds
+⚡️ <b>Available now:</b>
+✨ DeadZone Lite ROM Builds
 
-🎮 Other premium styles:
-• GamingPlus / Legend / Ninja
-
-━━━━━━━━━━━━━━━
-
-📥 /mezo <ROM_LINK> — Send your ROM link to MEZO for a fast Lite build
-📦 /mezo <codename> — Show available DeadZone Lite builds
+🎮 <b>Premium styles available:</b>
+🚀 GamingPlus / 👑 Legend / 🥷 Ninja
 
 ━━━━━━━━━━━━━━━
 
-🤖 Made by MEZO to help you build faster.
-👤 Contact MEZO: https://t.me/MohamedMezo1`;
+📥 <code>/mezo &lt;ROM_LINK&gt;</code>
+🔧 Send your ROM link to <a href="https://t.me/MohamedMezo1">MEZO</a> for a fast and clean Lite build.
+
+📦 <code>/mezo &lt;codename&gt;</code>
+🔎 Check available DeadZone Lite builds for your device.
+
+━━━━━━━━━━━━━━━
+
+🚀 Fast. Clean. Optimized.
+🤖 Powered by <a href="https://t.me/MohamedMezo1">MEZO</a> to make building easier.`;
 const ROM_SOURCE_URL =
   "https://raw.githubusercontent.com/XiaomiFirmwareUpdater/miui-updates-tracker/master/data/latest.yml";
 const ROM_SOURCE_NAME = "XiaomiFirmwareUpdater/miui-updates-tracker";
@@ -151,7 +154,7 @@ async function handleTelegramWebhook(request, env) {
 
   switch (command.name) {
     case "help":
-      await sendTelegramMessage(env, chatId, HELP_MESSAGE, message.message_id);
+      await sendTelegramMessage(env, chatId, HELP_MESSAGE, message.message_id, "HTML");
       return okResponse();
     case "latest":
       await sendTelegramMessage(env, chatId, await formatLatestBuild(env), message.message_id);
@@ -1269,22 +1272,29 @@ function resolveRepo(env) {
   return repo;
 }
 
-async function sendTelegramMessage(env, chatId, text, replyToMessageId) {
+async function sendTelegramMessage(env, chatId, text, replyToMessageId, parseMode = null) {
+  const payload = {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+    ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+  };
+
+  if (parseMode) {
+    payload.parse_mode = parseMode;
+  }
+
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json; charset=UTF-8" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      disable_web_page_preview: true,
-      ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     throw new Error("telegram_send_failed");
   }
 }
+
 
 async function dispatchWorkflow(env, romLink, builderName, builderId) {
   try {
