@@ -1,3 +1,27 @@
+# DeadZone: skip OS3 launcher replacement on POCO devices
+DZ_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DZ_WORK_DIR="${work_dir:-$(cd "$DZ_SCRIPT_DIR/../../../.." && pwd)}"
+
+dz_is_poco=false
+
+if grep -RIsi "poco" "$DZ_WORK_DIR/bin/ddevice" 2>/dev/null | grep -qi "poco"; then
+    dz_is_poco=true
+elif grep -RIsi "POCO" \
+    "$DZ_WORK_DIR/build/baserom/images/vendor" \
+    "$DZ_WORK_DIR/build/baserom/images/odm" \
+    "$DZ_WORK_DIR/build/baserom/images/product" \
+    "$DZ_WORK_DIR/build/baserom/images/system_ext" 2>/dev/null | grep -qi "POCO"; then
+    dz_is_poco=true
+fi
+
+if [[ "$dz_is_poco" == "true" ]]; then
+    if declare -F mods >/dev/null 2>&1; then
+        mods "[OS3 Launcher] Skip: POCO device detected, keep default launcher."
+    else
+        echo "[OS3 Launcher] Skip: POCO device detected, keep default launcher."
+    fi
+    exit 0
+fi
 work_dir=$(pwd)
 source $work_dir/functions.sh
 MAIN_FOLDER="$work_dir/build/baserom/images"
