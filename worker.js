@@ -17,12 +17,21 @@ const DISPATCH_FAILURE_MESSAGE = "Build request could not be started. Please con
 const ACK_MESSAGE = "\u{1F4E5} Link received by MEZO.\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.";
 const HELP_MESSAGE = `🔥 DeadZone Lite Bot
 
-/mezo <ROM_LINK> — Build from direct ROM link
-/mezo <codename> — Show available DeadZone builds
+⚡ Available now:
+• DeadZone Lite ROM Builds
 
-Examples:
-/mezo https://example.com/rom.zip
-/mezo zircon`;
+🎮 Other premium styles:
+• GamingPlus / Legend / Ninja
+
+━━━━━━━━━━━━━━━
+
+📥 /mezo <ROM_LINK> — Send your ROM link to MEZO for a fast Lite build
+📦 /mezo <codename> — Show available DeadZone Lite builds
+
+━━━━━━━━━━━━━━━
+
+🤖 Made by MEZO to help you build faster.
+👤 Contact MEZO: https://t.me/MohamedMezo1`;
 const ROM_SOURCE_URL =
   "https://raw.githubusercontent.com/XiaomiFirmwareUpdater/miui-updates-tracker/master/data/latest.yml";
 const ROM_SOURCE_NAME = "XiaomiFirmwareUpdater/miui-updates-tracker";
