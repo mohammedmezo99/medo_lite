@@ -1,35 +1,28 @@
 const TARGET_GITHUB_REPO = "mohammedmezo99/medo_lite";
 const DEFAULT_WORKFLOW_FILE = "build.yml";
-const INVALID_USAGE_MESSAGE =
-  "Usage:
-" +
-  "/mezo <ROM_LINK> — Build from direct ROM link
-" +
-  "/mezo <codename> — Show available DeadZone builds
+const INVALID_USAGE_MESSAGE = `Usage:
+/mezo <ROM_LINK> — Build from direct ROM link
+/mezo <codename> — Show available DeadZone builds
 
-" +
-  "Examples:
-" +
-  "/mezo https://example.com/rom.zip
-" +
-  "/mezo zircon";
-const BUILD_USAGE_MESSAGE = "Usage:\n/build <codename> <region>\n/build <codename> latest\n\nExample:\n/build zircon china";
+Examples:
+/mezo https://example.com/rom.zip
+/mezo zircon`;
+const BUILD_USAGE_MESSAGE = `Usage:
+/build <codename> <region>
+/build <codename> latest
+
+Example:
+/build zircon china`;
 const DISPATCH_FAILURE_MESSAGE = "Build request could not be started. Please contact MEZO.";
 const ACK_MESSAGE = "\u{1F4E5} Link received by MEZO.\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.";
-const HELP_MESSAGE =
-  "🔥 DeadZone Lite Bot
+const HELP_MESSAGE = `🔥 DeadZone Lite Bot
 
-" +
-  "/mezo <ROM_LINK> — Build from direct ROM link
-" +
-  "/mezo <codename> — Show available DeadZone builds
+/mezo <ROM_LINK> — Build from direct ROM link
+/mezo <codename> — Show available DeadZone builds
 
-" +
-  "Examples:
-" +
-  "/mezo https://example.com/rom.zip
-" +
-  "/mezo zircon";
+Examples:
+/mezo https://example.com/rom.zip
+/mezo zircon`;
 const ROM_SOURCE_URL =
   "https://raw.githubusercontent.com/XiaomiFirmwareUpdater/miui-updates-tracker/master/data/latest.yml";
 const ROM_SOURCE_NAME = "XiaomiFirmwareUpdater/miui-updates-tracker";
