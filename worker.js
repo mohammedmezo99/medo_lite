@@ -46,6 +46,10 @@ const PRIVATE_BUILDS_LIMIT = 5;
 const BUILD_STATUS_ORDER = ["queued", "building", "uploading", "success", "failed"];
 const ACTIVE_BUILD_STATUS_ORDER = ["queued", "building", "uploading"];
 const REGION_ORDER = ["China", "Global", "EEA", "India", "Indonesia", "Russia", "Turkey", "Taiwan", "Japan", "Unknown"];
+const PUBLISH_YES_ACTION = "dz_publish_yes";
+const PUBLISH_NO_ACTION = "dz_publish_no";
+const CHANGELOG_LINK = "https://t.me/DeadZoneCloud/676";
+const DEVELOPER_LINK = "https://t.me/MohamedMezo1";
 const REGION_ALIASES = new Map([
   ["china", "China"],
   ["cn", "China"],
@@ -93,6 +97,11 @@ async function handleTelegramWebhook(request, env) {
     update = await request.json();
   } catch {
     return new Response("Bad Request", { status: 400 });
+  }
+
+  const callbackQuery = update?.callback_query;
+  if (callbackQuery) {
+    return handleCallbackQuery(env, callbackQuery);
   }
 
   const message = update?.message;
@@ -184,6 +193,58 @@ async function handleTelegramWebhook(request, env) {
     default:
       return okResponse();
   }
+}
+
+async function handleCallbackQuery(env, callbackQuery) {
+  const callbackQueryId = String(callbackQuery?.id ?? "");
+  const data = String(callbackQuery?.data ?? "").trim();
+  const fromId = String(callbackQuery?.from?.id ?? "");
+  const chatId = String(callbackQuery?.message?.chat?.id ?? "");
+  const messageId = callbackQuery?.message?.message_id;
+  const ownerId = String(env.MEZO_PRIVATE_CHAT_ID ?? "").trim();
+  const authorized = Boolean(ownerId) && fromId === ownerId && chatId === ownerId;
+
+  console.log("[worker] callback query received", {
+    data,
+    fromIdPresent: Boolean(fromId),
+    chatIdPresent: Boolean(chatId),
+    authorized,
+  });
+
+  if (!callbackQueryId) {
+    return okResponse();
+  }
+
+  if (!authorized) {
+    await answerCallbackQuery(env, callbackQueryId, "Unauthorized");
+    return okResponse();
+  }
+
+  const { action, token } = parsePublishCallbackData(data);
+  if (action === PUBLISH_YES_ACTION) {
+    const published = await publishLatestManualBuild(env, token);
+    if (!published.ok) {
+      await answerCallbackQuery(env, callbackQueryId, published.errorMessage);
+      return okResponse();
+    }
+
+    if (chatId && messageId) {
+      await editTelegramMessage(env, chatId, messageId, "✅ Published to release channel.");
+    }
+    await answerCallbackQuery(env, callbackQueryId, "Published");
+    return okResponse();
+  }
+
+  if (action === PUBLISH_NO_ACTION) {
+    if (chatId && messageId) {
+      await editTelegramMessage(env, chatId, messageId, "❌ Release post skipped by MEZO.");
+    }
+    await answerCallbackQuery(env, callbackQueryId, "Skipped");
+    return okResponse();
+  }
+
+  await answerCallbackQuery(env, callbackQueryId, "Unknown action");
+  return okResponse();
 }
 
 async function handlePrivateStatusCommand(env, message, chatId, chatType, isPublicChat, isAuthorizedPrivateChat) {
@@ -713,6 +774,26 @@ async function handleInternalBuildSync(request, env) {
   return Response.json({ ok: updated }, { status: 200 });
 }
 
+async function publishLatestManualBuild(env, token = "") {
+  const releaseChatId = String(env.TELEGRAM_RELEASE_GROUP_ID || env.TELEGRAM_CHAT_GROUP_ID || "").trim();
+  if (!releaseChatId) {
+    return { ok: false, errorMessage: "Release channel is not configured." };
+  }
+
+  const row = await findPublishableBuild(env, token);
+  if (!row) {
+    return { ok: false, errorMessage: "No completed build found." };
+  }
+
+  await sendTelegramMessage(env, releaseChatId, formatReleaseCaptionFromBuild(row), null, "HTML");
+  console.log("[worker] release published from callback", {
+    buildId: row.id,
+    deviceCodename: row.device_codename || "",
+    tokenMatched: Boolean(token),
+  });
+  return { ok: true, row };
+}
+
 async function createBuildRecord(env, build) {
   const metadata = build.metadata || {};
   const query = `
@@ -860,6 +941,28 @@ async function insertBuildRecordFromSync(env, build) {
       build.updatedAt,
     )
     .run();
+}
+
+async function findPublishableBuild(env, token = "") {
+  const query = `
+    SELECT id, device_codename, device_name, rom_version, region, android, final_zip, drive_link, updated_at
+    FROM builds
+    WHERE status = 'success'
+      AND drive_link IS NOT NULL
+      AND TRIM(drive_link) != ''
+      AND final_zip IS NOT NULL
+      AND TRIM(final_zip) != ''
+    ORDER BY datetime(updated_at) DESC, id DESC
+    LIMIT 20
+  `;
+
+  const results = await env.medo_lite_bot.prepare(query).all();
+  const rows = results?.results || [];
+  if (!token) {
+    return rows[0] || null;
+  }
+
+  return rows.find((row) => buildPublishToken(row) === token) || null;
 }
 
 async function fetchBuildableRomsForCodename(env, codename, options = {}) {
@@ -1156,6 +1259,111 @@ function compactLink(link) {
   }
 }
 
+function parsePublishCallbackData(value) {
+  const [action, token = ""] = String(value || "").split(":", 2);
+  return {
+    action: String(action || "").trim(),
+    token: String(token || "").trim().toLowerCase(),
+  };
+}
+
+function buildPublishToken(build) {
+  const raw = [
+    String(build?.final_zip || "").trim().toLowerCase(),
+    String(build?.drive_link || "").trim().toLowerCase(),
+    String(build?.device_codename || "").trim().toLowerCase(),
+    String(build?.rom_version || "").trim().toLowerCase(),
+  ].join("|");
+  return crc32Hex(raw);
+}
+
+function crc32Hex(value) {
+  let crc = 0 ^ -1;
+  for (let index = 0; index < value.length; index += 1) {
+    crc = (crc >>> 8) ^ getCrc32TableValue((crc ^ value.charCodeAt(index)) & 0xff);
+  }
+  return ((crc ^ -1) >>> 0).toString(16).padStart(8, "0");
+}
+
+const CRC32_TABLE = new Array(256).fill(null);
+
+function getCrc32TableValue(index) {
+  if (CRC32_TABLE[index] !== null) {
+    return CRC32_TABLE[index];
+  }
+
+  let value = index;
+  for (let step = 0; step < 8; step += 1) {
+    value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+  }
+  CRC32_TABLE[index] = value >>> 0;
+  return CRC32_TABLE[index];
+}
+
+function formatReleaseCaptionFromBuild(row) {
+  const driveLink = sanitizeUrl(row?.drive_link);
+  if (!driveLink) {
+    throw new Error("missing_drive_link");
+  }
+
+  const version = formatDeadZoneVersion(row?.final_zip);
+  const codename = String(row?.device_codename || "unknown").trim().toLowerCase() || "unknown";
+  const android = normalizeAndroidTag(row?.android);
+  const hyperOsTag = deriveHyperOsTag(row?.rom_version);
+  const androidHashTag = deriveAndroidHashTag(row?.android);
+
+  return [
+    `🚀 <b>DeadZone Lite ${escapeHtml(version)} Released</b>`,
+    "",
+    `📱 <b>Device:</b> ${escapeHtml(row?.device_name || "Unknown Xiaomi Device")}`,
+    `🧩 <b>Codename:</b> #${escapeHtml(codename)}`,
+    `⚙️ <b>ROM:</b> ${escapeHtml(row?.rom_version || "Unknown")}`,
+    `🌍 <b>Region:</b> ${escapeHtml(row?.region || "Unknown")}`,
+    `🤖 <b>Android:</b> ${escapeHtml(android)}`,
+    "",
+    "━━━━━━━━━━━━━━━",
+    "",
+    `📋 <a href="${escapeHtml(CHANGELOG_LINK)}">Changelogs</a>`,
+    `👨‍💻 <a href="${escapeHtml(DEVELOPER_LINK)}">Developer MEZO</a>`,
+    "",
+    "━━━━━━━━━━━━━━━",
+    "",
+    `⬇️ <b>Download:</b> <a href="${escapeHtml(driveLink)}">Click Here</a>`,
+    "",
+    "━━━━━━━━━━━━━━━",
+    `#${escapeHtml(codename)} #DeadZoneLite #${escapeHtml(hyperOsTag)} #${escapeHtml(androidHashTag)} #MEZO`,
+  ].join("\n");
+}
+
+function formatDeadZoneVersion(finalZip) {
+  const text = String(finalZip || "").trim();
+  const match = text.match(/DeadZoneLite_(v[^_]+)_/i);
+  if (!match?.[1]) {
+    return "Latest";
+  }
+
+  const value = match[1];
+  return value[0].toLowerCase() === "v" ? `v${value.slice(1)}` : `v${value}`;
+}
+
+function deriveHyperOsTag(romVersion) {
+  const match = String(romVersion || "").trim().match(/^OS(\d+)/i);
+  return match?.[1] ? `HyperOS${match[1]}` : "HyperOS";
+}
+
+function deriveAndroidHashTag(android) {
+  const digits = String(android || "").replace(/[^0-9]/g, "");
+  return digits ? `Android${digits}` : "Android";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function isBuildableRomLink(link, method) {
   const normalizedLink = String(link || "").trim().toLowerCase();
   if (!normalizedLink.endsWith(".zip")) {
@@ -1360,15 +1568,54 @@ async function sendTelegramMessage(env, chatId, text, replyToMessageId, parseMod
     payload.parse_mode = parseMode;
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  await callTelegramApi(env, "sendMessage", payload, "telegram_send_failed");
+}
+
+async function answerCallbackQuery(env, callbackQueryId, text) {
+  await callTelegramApi(
+    env,
+    "answerCallbackQuery",
+    {
+      callback_query_id: callbackQueryId,
+      text,
+      show_alert: false,
+    },
+    "telegram_callback_answer_failed",
+  );
+}
+
+async function editTelegramMessage(env, chatId, messageId, text, parseMode = null) {
+  const payload = {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    disable_web_page_preview: true,
+  };
+
+  if (parseMode) {
+    payload.parse_mode = parseMode;
+  }
+
+  await callTelegramApi(env, "editMessageText", payload, "telegram_edit_failed");
+}
+
+async function callTelegramApi(env, method, payload, errorCode) {
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json; charset=UTF-8" },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error("telegram_send_failed");
+    throw new Error(errorCode);
   }
+
+  const data = await response.json().catch(() => null);
+  if (!data?.ok) {
+    throw new Error(errorCode);
+  }
+
+  return data.result || null;
 }
 
 

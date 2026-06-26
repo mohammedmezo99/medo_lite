@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import zlib
 from datetime import datetime
 from pathlib import Path
 
@@ -286,7 +287,7 @@ def format_private_message(status: str, stage: str = "") -> str:
     elif status == "publish_prompt":
         lines.append("Manual GitHub build completed.")
         lines.append("This build was uploaded but not posted publicly.")
-        lines.append("Publish to release channel? Yes / No")
+        lines.append("Use the buttons below to publish or skip.")
 
     if metadata["drive_link"]:
         lines.append(f"Drive link: {metadata['drive_link']}")
@@ -397,6 +398,44 @@ def send_telegram_message(chat_id: str, text: str, parse_mode: str | None = None
     return int(message_id)
 
 
+def build_publish_callback_data(action: str, metadata: dict) -> str:
+    raw = "|".join(
+        [
+            (metadata.get("filename") or "").strip().lower(),
+            (metadata.get("drive_link") or "").strip().lower(),
+            (metadata.get("codename_lower") or "").strip().lower(),
+            (metadata.get("rom_version") or "").strip().lower(),
+        ]
+    )
+    token = f"{zlib.crc32(raw.encode('utf-8')) & 0xFFFFFFFF:08x}"
+    return f"{action}:{token}"
+
+
+def send_private_publish_prompt(chat_id: str, text: str, metadata: dict) -> int:
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "disable_web_page_preview": True,
+        "reply_markup": {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ YES", "callback_data": build_publish_callback_data("dz_publish_yes", metadata)},
+                    {"text": "❌ NO", "callback_data": build_publish_callback_data("dz_publish_no", metadata)},
+                ]
+            ]
+        },
+    }
+    response = requests.post(telegram_api_url("sendMessage"), json=payload, timeout=TIMEOUT)
+    response.raise_for_status()
+    data = response.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Telegram sendMessage failed: {data}")
+    message_id = data.get("result", {}).get("message_id")
+    if message_id is None:
+        raise RuntimeError("Telegram sendMessage did not return message_id")
+    return int(message_id)
+
+
 def edit_telegram_message(chat_id: str, message_id: str, text: str, parse_mode: str | None = None) -> bool:
     payload = {
         "chat_id": chat_id,
@@ -444,6 +483,12 @@ def handle_private(status: str, stage: str = "") -> None:
     sync_worker_build_status(status)
     text = format_private_message(status, stage)
     message_id = os.environ.get("MEZO_PRIVATE_MESSAGE_ID", "").strip()
+    metadata = get_metadata()
+
+    if status == "publish_prompt":
+        new_message_id = send_private_publish_prompt(chat_id, text, metadata)
+        write_github_env("MEZO_PRIVATE_MESSAGE_ID", str(new_message_id))
+        return
 
     if status == "request_received" or not message_id:
         new_message_id = send_telegram_message(chat_id, text)

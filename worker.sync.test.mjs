@@ -14,14 +14,24 @@ globalThis.__workerTestables = {
   formatLatestBuild,
   formatRecentBuilds,
   sanitizeBuildMetadata,
+  handleCallbackQuery,
+  publishLatestManualBuild,
+  formatReleaseCaptionFromBuild,
+  buildPublishToken,
+  __setFetchImpl: (impl) => {
+    globalThis.__fetchImpl = impl;
+  },
 };
 `;
   const context = {
     console,
     URL,
     Response,
-    fetch: async () => {
-      throw new Error("fetch not implemented in tests");
+    fetch: async (...args) => {
+      if (typeof context.__fetchImpl !== "function") {
+        throw new Error("fetch not implemented in tests");
+      }
+      return context.__fetchImpl(...args);
     },
     setTimeout,
     clearTimeout,
@@ -183,6 +193,25 @@ class FakeD1 {
   }
 
   async all(query, params) {
+    if (query.includes("SELECT id, device_codename, device_name, rom_version, region, android, final_zip, drive_link, updated_at")) {
+      const rows = this.rows
+        .filter((row) => row.status === "success" && String(row.drive_link || "").trim() && String(row.final_zip || "").trim())
+        .sort((a, b) => this.compareByUpdatedDesc(a, b))
+        .slice(0, 20)
+        .map((row) => ({
+          id: row.id,
+          device_codename: row.device_codename,
+          device_name: row.device_name,
+          rom_version: row.rom_version,
+          region: row.region,
+          android: row.android,
+          final_zip: row.final_zip,
+          drive_link: row.drive_link,
+          updated_at: row.updated_at,
+        }));
+      return { results: rows };
+    }
+
     if (query.includes("LOWER(COALESCE(device_codename, '')) = ?")) {
       const [codename] = params;
       const rows = this.publishedRows()
@@ -231,7 +260,13 @@ class FakeD1 {
 }
 
 function makeEnv() {
-  return { medo_lite_bot: new FakeD1() };
+  return {
+    medo_lite_bot: new FakeD1(),
+    TELEGRAM_BOT_TOKEN: "test-bot-token",
+    TELEGRAM_RELEASE_GROUP_ID: "-100release",
+    TELEGRAM_CHAT_GROUP_ID: "-100public",
+    MEZO_PRIVATE_CHAT_ID: "999",
+  };
 }
 
 async function main() {
@@ -242,6 +277,11 @@ async function main() {
     formatLatestBuild,
     formatRecentBuilds,
     sanitizeBuildMetadata,
+    handleCallbackQuery,
+    publishLatestManualBuild,
+    formatReleaseCaptionFromBuild,
+    buildPublishToken,
+    __setFetchImpl,
   } = loadWorkerTestables();
 
   {
@@ -382,6 +422,138 @@ async function main() {
     assert.equal(preserved, true);
     assert.equal(env.medo_lite_bot.rows[0].drive_link, "https://drive.google.com/file/d/moon/view");
     assert.equal(env.medo_lite_bot.rows[0].final_zip, "deadzone-moon.zip");
+  }
+
+  {
+    const env = makeEnv();
+    const calls = [];
+    __setFetchImpl(async (url, options) => {
+      calls.push({ url, options: JSON.parse(options.body) });
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 777 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await updateBuildFromWorkflow(env, {
+      romLink: "https://example.com/rom-5.zip",
+      userId: "",
+      userName: "manual-builder",
+      status: "success",
+      updatedAt: "2026-06-26T16:00:00.000Z",
+      metadata: sanitizeBuildMetadata({
+        device_codename: "topaz",
+        device_name: "Xiaomi Topaz",
+        rom_version: "OS3.0.1",
+        region: "Global",
+        android: "A16",
+        final_zip: "DeadZoneLite_v1.23_TOPAZ_OS3.0.1_Global-A16.zip",
+        drive_link: "https://drive.google.com/file/d/topaz/view",
+      }),
+    });
+
+    const token = buildPublishToken(env.medo_lite_bot.rows[0]);
+    const result = await publishLatestManualBuild(env, token);
+    assert.equal(result.ok, true);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /sendMessage$/);
+    assert.equal(calls[0].options.chat_id, "-100release");
+    assert.equal(calls[0].options.parse_mode, "HTML");
+    assert.match(calls[0].options.text, /DeadZone Lite v1\.23 Released/);
+    assert.match(calls[0].options.text, /Click Here/);
+
+    const caption = formatReleaseCaptionFromBuild(env.medo_lite_bot.rows[0]);
+    assert.match(caption, /#topaz #DeadZoneLite #HyperOS3 #Android16 #MEZO/);
+  }
+
+  {
+    const env = makeEnv();
+    const calls = [];
+    __setFetchImpl(async (url, options) => {
+      calls.push({ url, options: JSON.parse(options.body) });
+      return new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await updateBuildFromWorkflow(env, {
+      romLink: "https://example.com/rom-6.zip",
+      userId: "",
+      userName: "manual-builder",
+      status: "success",
+      updatedAt: "2026-06-26T17:00:00.000Z",
+      metadata: sanitizeBuildMetadata({
+        device_codename: "agate",
+        device_name: "Xiaomi Agate",
+        rom_version: "OS2.9.0",
+        region: "India",
+        android: "A15",
+        final_zip: "DeadZoneLite_v2.00_AGATE_OS2.9.0_India-A15.zip",
+        drive_link: "https://drive.google.com/file/d/agate/view",
+      }),
+    });
+
+    const token = buildPublishToken(env.medo_lite_bot.rows[0]);
+    await handleCallbackQuery(env, {
+      id: "cb-yes",
+      data: `dz_publish_yes:${token}`,
+      from: { id: "999" },
+      message: { chat: { id: "999" }, message_id: 500 },
+    });
+
+    assert.equal(calls.length, 3);
+    assert.match(calls[0].url, /sendMessage$/);
+    assert.match(calls[1].url, /editMessageText$/);
+    assert.match(calls[2].url, /answerCallbackQuery$/);
+    assert.match(calls[1].options.text, /Published to release channel/);
+  }
+
+  {
+    const env = makeEnv();
+    const calls = [];
+    __setFetchImpl(async (url, options) => {
+      calls.push({ url, options: JSON.parse(options.body) });
+      return new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await handleCallbackQuery(env, {
+      id: "cb-no",
+      data: "dz_publish_no:deadbeef",
+      from: { id: "999" },
+      message: { chat: { id: "999" }, message_id: 501 },
+    });
+
+    assert.equal(calls.length, 2);
+    assert.match(calls[0].url, /editMessageText$/);
+    assert.match(calls[1].url, /answerCallbackQuery$/);
+    assert.match(calls[0].options.text, /Release post skipped by MEZO/);
+  }
+
+  {
+    const env = makeEnv();
+    const calls = [];
+    __setFetchImpl(async (url, options) => {
+      calls.push({ url, options: JSON.parse(options.body) });
+      return new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await handleCallbackQuery(env, {
+      id: "cb-unauthorized",
+      data: "dz_publish_yes:deadbeef",
+      from: { id: "123" },
+      message: { chat: { id: "123" }, message_id: 502 },
+    });
+
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /answerCallbackQuery$/);
+    assert.equal(calls[0].options.text, "Unauthorized");
   }
 
   console.log("worker.sync.test: ok");
