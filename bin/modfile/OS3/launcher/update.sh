@@ -4,11 +4,14 @@ set -e
 work_dir=$(pwd)
 source "$work_dir/functions.sh"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OS_NAME="$(basename "$(dirname "$SCRIPT_DIR")")"
+
 MAIN_FOLDER="$work_dir/build/baserom/images"
 rom_os=$(cat "$work_dir/bin/ddevice/rom_os.txt")
 device_code=$(cat "$work_dir/bin/ddevice/device_f.txt")
 
-LAUNCHER_DIR="$work_dir/bin/modfile/OS3/launcher"
+LAUNCHER_DIR="$work_dir/bin/modfile/$OS_NAME/launcher"
 
 MIUI_HOME_SRC="$LAUNCHER_DIR/MiuiHome"
 XIAOMI_EU_EXT_SRC="$LAUNCHER_DIR/XiaomiEUExt"
@@ -26,7 +29,7 @@ PRIVAPP_XML="$PRODUCT/etc/permissions/privapp-permissions-product.xml"
 PRODUCT_OVERLAY="$PRODUCT/overlay"
 VENDOR_PROP="$VENDOR/build.prop"
 
-MOD_NAME="OS3 MIUI Launcher"
+MOD_NAME="$OS_NAME MIUI Launcher"
 
 find_apk_by_package() {
   local search_dir="$1"
@@ -166,7 +169,6 @@ if 'privapp-permissions package="com.miui.home"' not in text:
         text = text.replace("</permissions>", block + "\n</permissions>")
     else:
         text = '<?xml version="1.0" encoding="utf-8"?>\n<permissions>\n' + text + "\n" + block + "\n</permissions>\n"
-
     path.write_text(text, encoding="utf-8")
     print("[INFO] - com.miui.home added to privapp-permissions-product.xml")
 else:
@@ -226,8 +228,8 @@ clean_vendor_privapp_enforce() {
   fi
 }
 
-if [[ "$rom_os" != "OS3" ]]; then
-  warn "[$MOD_NAME] skipped: ROM is not OS3"
+if [[ "$rom_os" != "$OS_NAME" ]]; then
+  warn "[$MOD_NAME] skipped: ROM is not $OS_NAME"
   exit 0
 fi
 
@@ -251,7 +253,7 @@ if detect_poco_device; then
   exit 0
 fi
 
-mods "[$MOD_NAME] Non-POCO device: applying normal OS3 launcher"
+mods "[$MOD_NAME] Non-POCO device: applying normal launcher"
 
 remove_origin_launchers
 copy_launcher_files
