@@ -10,6 +10,7 @@ rom_os=$(cat "$work_dir/bin/ddevice/rom_os.txt")
 device_code=$(cat "$work_dir/bin/ddevice/device_f.txt")
 device_name_file="$work_dir/bin/ddevice/device_name.txt"
 name_devices_file="$work_dir/bin/ddevice/name_devices.txt"
+codename_file="$work_dir/bin/ddevice/codename.txt"
 
 MOD_NAME="POCO MIUI Launcher Fix"
 PRODUCT_DIR="$MAIN_FOLDER/product"
@@ -21,6 +22,11 @@ PRODUCT_PERMISSIONS_DIR="$PRODUCT_DIR/etc/permissions"
 PRIVAPP_XML="$PRODUCT_PERMISSIONS_DIR/privapp-permissions-product.xml"
 PRODUCT_OVERLAY_DIR="$PRODUCT_DIR/overlay"
 VENDOR_PROP="$VENDOR_DIR/build.prop"
+POCO_FIX_ALLOW_CODENAME_MATCH="${POCO_FIX_ALLOW_CODENAME_MATCH:-false}"
+POCO_CODENAMES=(
+    alioth munch ingres marble mondrian peridot vermeer onyx zorn miro
+    annibale myron garnet rodin duchamp redwood vayu bhima sky breeze flame
+)
 
 log_mod() {
     mods "[$MOD_NAME] $1"
@@ -30,43 +36,128 @@ log_warn() {
     warn "[$MOD_NAME] $1"
 }
 
+contains_poco_text() {
+    local value="$1"
+    [[ "$value" =~ (^|[^[:alnum:]])POCO([^[:alnum:]]|$) ]]
+}
+
 contains_poco_metadata() {
     local file="$1"
     [ -f "$file" ] || return 1
-    grep -Eiq '(^|[^[:alnum:]])POCO([^[:alnum:]]|$)' "$file"
+    while IFS= read -r line; do
+        contains_poco_text "$line" && return 0
+    done < "$file"
+    return 1
 }
 
-contains_poco_buildprop() {
-    local search_root="$1"
-    [ -d "$search_root" ] || return 1
-    grep -RIEiq '^ro\.(product|product\.vendor|vendor)\.(brand|manufacturer|marketname|model|name|device)=.*POCO' "$search_root" 2>/dev/null
+read_first_value() {
+    local file="$1"
+    [ -f "$file" ] || return 1
+    IFS= read -r line < "$file" || return 1
+    printf '%s\n' "$line"
+}
+
+contains_poco_buildprop_file() {
+    local file="$1"
+    [ -f "$file" ] || return 1
+    while IFS='=' read -r key value; do
+        case "$key" in
+            ro.product.marketname|ro.product.model|ro.product.vendor.marketname|ro.product.vendor.model|ro.vendor.product.marketname|ro.vendor.product.model|ro.product.name|ro.product.device|ro.build.product)
+                contains_poco_text "$value" && return 0
+                ;;
+        esac
+    done < "$file"
+    return 1
 }
 
 has_poco_launcher_folder() {
-    local base="$1"
-    [ -d "$base" ] || return 1
-    find "$base" -type d \( -name "PocoHome" -o -name "PocoLauncher" -o -name "GlobalLauncher" \) -print -quit 2>/dev/null | grep -q .
+    local dir="$1"
+    [ -d "$dir" ]
 }
 
-has_global_launcher_package() {
-    local base="$1"
-    [ -d "$base" ] || return 1
-    grep -RIsq 'com\.mi\.android\.globallauncher' "$base" 2>/dev/null
+is_known_poco_codename() {
+    local value="$1"
+    local lowered="${value,,}"
+    local codename
+    for codename in "${POCO_CODENAMES[@]}"; do
+        [[ "$lowered" == "$codename" ]] && return 0
+    done
+    return 1
 }
 
 is_poco_device() {
-    contains_poco_metadata "$device_name_file" && return 0
-    contains_poco_metadata "$name_devices_file" && return 0
+    local metadata_match=1
+    local buildprop_match=1
+    local launcher_match=1
+    local codename_match=1
+    local codename_value=""
+    local metadata_files=(
+        "$device_name_file"
+        "$name_devices_file"
+        "$work_dir/bin/ddevice/device_f.txt"
+        "$codename_file"
+    )
+    local buildprop_files=(
+        "$MAIN_FOLDER/product/build.prop"
+        "$MAIN_FOLDER/system/build.prop"
+        "$MAIN_FOLDER/system/system/build.prop"
+        "$MAIN_FOLDER/system_ext/build.prop"
+        "$MAIN_FOLDER/vendor/build.prop"
+        "$MAIN_FOLDER/odm/build.prop"
+    )
+    local launcher_dirs=(
+        "$PRODUCT_DIR/app/PocoHome"
+        "$PRODUCT_DIR/priv-app/PocoHome"
+        "$PRODUCT_DIR/data-app/PocoHome"
+        "$PRODUCT_DIR/app/PocoLauncher"
+        "$PRODUCT_DIR/priv-app/PocoLauncher"
+        "$PRODUCT_DIR/data-app/PocoLauncher"
+        "$PRODUCT_DIR/app/GlobalLauncher"
+        "$PRODUCT_DIR/priv-app/GlobalLauncher"
+        "$PRODUCT_DIR/data-app/GlobalLauncher"
+    )
+    local file launcher_dir
 
-    contains_poco_buildprop "$MAIN_FOLDER/product" && return 0
-    contains_poco_buildprop "$MAIN_FOLDER/system" && return 0
-    contains_poco_buildprop "$MAIN_FOLDER/system_ext" && return 0
-    contains_poco_buildprop "$MAIN_FOLDER/vendor" && return 0
-    contains_poco_buildprop "$MAIN_FOLDER/odm" && return 0
+    log_mod "Detection: metadata"
+    for file in "${metadata_files[@]}"; do
+        if contains_poco_metadata "$file"; then
+            metadata_match=0
+            break
+        fi
+    done
 
-    has_global_launcher_package "$PRODUCT_DIR" && return 0
-    has_poco_launcher_folder "$PRODUCT_DIR" && return 0
+    log_mod "Detection: build.prop"
+    for file in "${buildprop_files[@]}"; do
+        if contains_poco_buildprop_file "$file"; then
+            buildprop_match=0
+            break
+        fi
+    done
 
+    log_mod "Detection: launcher folders"
+    for launcher_dir in "${launcher_dirs[@]}"; do
+        if has_poco_launcher_folder "$launcher_dir"; then
+            launcher_match=0
+            break
+        fi
+    done
+
+    codename_value="$(read_first_value "$codename_file" || true)"
+    if is_known_poco_codename "$device_code" || is_known_poco_codename "$codename_value"; then
+        codename_match=0
+    fi
+
+    if [[ $metadata_match -eq 0 || $buildprop_match -eq 0 || $launcher_match -eq 0 ]]; then
+        log_mod "Detection result: POCO"
+        return 0
+    fi
+
+    if [[ $codename_match -eq 0 && "${POCO_FIX_ALLOW_CODENAME_MATCH,,}" == "true" ]]; then
+        log_mod "Detection result: POCO"
+        return 0
+    fi
+
+    log_mod "Detection result: non-POCO"
     return 1
 }
 
@@ -99,6 +190,7 @@ remove_poco_launcher_dirs() {
     local removed=0
     local fixed_names=("PocoHome" "PocoLauncher" "GlobalLauncher" "MiLauncherGlobal")
     local scan_dirs=("$PRODUCT_DIR/app" "$PRODUCT_DIR/priv-app" "$PRODUCT_DIR/data-app")
+    local scan_dir name
 
     for scan_dir in "${scan_dirs[@]}"; do
         [ -d "$scan_dir" ] || continue
@@ -110,13 +202,6 @@ remove_poco_launcher_dirs() {
                 log_mod "removed $scan_dir/$name"
             fi
         done
-
-        while IFS= read -r match; do
-            [ -n "$match" ] || continue
-            rm -rf "$match"
-            removed=1
-            log_mod "removed package match $match"
-        done < <(grep -RIl 'com\.mi\.android\.globallauncher' "$scan_dir" 2>/dev/null | xargs -r -n1 dirname | sort -u)
     done
 
     if [ "$removed" -eq 0 ]; then
@@ -254,7 +339,7 @@ if grep -qw "$device_code" "$work_dir/bin/ddevice/data/pad_data.txt"; then
 fi
 
 if ! is_poco_device; then
-    mods "[$MOD_NAME] Skip: non-POCO device"
+    log_mod "Skip: non-POCO device"
     exit 0
 fi
 
