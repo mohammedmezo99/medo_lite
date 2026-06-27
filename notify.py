@@ -476,11 +476,11 @@ def send_telegram_photo(chat_id: str, caption: str, image_path: Path) -> None:
 
 
 def handle_private(status: str, stage: str = "") -> None:
+    sync_worker_build_status(status)
     chat_id = os.environ.get("MEZO_PRIVATE_CHAT_ID")
     if not chat_id:
-        raise RuntimeError("Missing MEZO_PRIVATE_CHAT_ID")
-
-    sync_worker_build_status(status)
+        print("[notify] MEZO_PRIVATE_CHAT_ID missing; private notification skipped", file=sys.stderr)
+        return
     text = format_private_message(status, stage)
     message_id = os.environ.get("MEZO_PRIVATE_MESSAGE_ID", "").strip()
     metadata = get_metadata()

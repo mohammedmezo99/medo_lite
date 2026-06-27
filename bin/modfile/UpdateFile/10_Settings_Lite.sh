@@ -97,6 +97,7 @@ java -jar "$APK_EDITOR" d -framework-version "$FRAMEWORK_VERSION" -i "$WORK_APK"
 python3 - "$SRC_DIR" "$ASSET_DIR" <<'PY'
 from pathlib import Path
 import re, shutil, sys, zipfile
+import xml.etree.ElementTree as ET
 
 src_dir = Path(sys.argv[1])
 asset_dir = Path(sys.argv[2])
@@ -121,6 +122,39 @@ def ensure_file(path: Path, root_tag: str = "resources") -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<{root_tag}>\n</{root_tag}>\n", encoding="utf-8")
 
+def read_xml_text(path: Path) -> tuple[str | None, str | None]:
+    try:
+        raw = path.read_bytes()
+    except Exception as exc:
+        return None, f"read failed: {exc}"
+    if not raw:
+        return None, "empty file"
+    if b"\x00" in raw:
+        return None, "contains NUL bytes"
+    encodings = ["utf-8-sig"]
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        encodings = ["utf-16", "utf-8-sig"]
+    text = None
+    last_error = "decode failed"
+    for encoding in encodings:
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError as exc:
+            last_error = f"decode failed: {exc}"
+    if text is None:
+        return None, last_error
+    stripped = text.lstrip()
+    if not stripped.startswith("<"):
+        return None, "does not start with XML-like content"
+    if any(ch < " " and ch not in "\r\n\t" for ch in text):
+        return None, "contains control characters"
+    try:
+        ET.fromstring(text)
+    except ET.ParseError as exc:
+        return None, f"parse failed: {exc}"
+    return text, None
+
 def insert_before_end(path: Path, block: str, guard: str) -> bool:
     ensure_file(path)
     text = path.read_text(encoding="utf-8", errors="ignore")
@@ -137,7 +171,8 @@ def insert_before_end(path: Path, block: str, guard: str) -> bool:
 def copy_res_files(res_root: Path) -> None:
     src_res = asset_dir / "res"
     if not src_res.is_dir():
-        return
+        return []
+    copied_xml_files: list[Path] = []
     for path in sorted(src_res.rglob("*")):
         if not path.is_file():
             continue
@@ -145,9 +180,37 @@ def copy_res_files(res_root: Path) -> None:
         dest = res_root / rel
         if dest.suffix.lower() == ".txt":
             dest = dest.with_suffix(".xml")
+        if dest.suffix.lower() == ".xml":
+            _, error = read_xml_text(path)
+            if error:
+                log(f"Skip invalid XML resource: {path}")
+                continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, dest)
-        log(f"copied res/{dest.relative_to(res_root)}")
+        if dest.suffix.lower() == ".xml":
+            copied_xml_files.append(dest)
+        log(f"copied valid resource: res/{dest.relative_to(res_root)}")
+    return copied_xml_files
+
+def sanitize_copied_xml(res_root: Path, copied_xml_files: list[Path]) -> None:
+    copied_set = {path.resolve() for path in copied_xml_files}
+    invalid_existing: list[tuple[Path, str]] = []
+    for xml_path in sorted(res_root.rglob("*.xml")):
+        _, error = read_xml_text(xml_path)
+        if not error:
+            continue
+        if xml_path.resolve() in copied_set:
+            try:
+                xml_path.unlink()
+            except FileNotFoundError:
+                pass
+            log(f"Skip invalid XML resource: {xml_path}")
+            continue
+        invalid_existing.append((xml_path, error))
+    if invalid_existing:
+        first_path, first_error = invalid_existing[0]
+        raise SystemExit(f"Invalid XML present before rebuild: {first_path} ({first_error})")
+    log(f"sanity-checked XML resources under {res_root}")
 
 def parse_type_entries(resource_file: Path) -> tuple[str, list[str]] | None:
     resource_type = resource_file.stem.lower()
@@ -271,7 +334,7 @@ res_root = find_res_root(src_dir)
 if res_root is None:
     raise SystemExit("Cannot locate APKEditor resource root/public.xml")
 log(f"resource root: {res_root}")
-copy_res_files(res_root)
+copied_xml_files = copy_res_files(res_root)
 ensure_values_from_assets(res_root)
 entries: dict[str, list[str]] = {}
 resources_dir = asset_dir / "resources"
@@ -286,6 +349,7 @@ for resource_file in sorted(resources_dir.glob("*.xml")):
             entries[typ].append(name)
 ensure_public_entries(res_root / "values" / "public.xml", entries)
 add_settings_header(res_root)
+sanitize_copied_xml(res_root, copied_xml_files)
 smali_zip = asset_dir / "add_smali" / "smali.zip"
 if smali_zip.is_file():
     smali_root = src_dir / "smali" / "classes"
@@ -297,9 +361,12 @@ else:
     log("smali.zip not found; skipped smali injection")
 PY
 
-lite_log "Rebuilding Settings.apk"
+lite_log "Settings Lite rebuild started"
 rm -f "$OUT_APK"
-java -jar "$APK_EDITOR" b -framework-version "$FRAMEWORK_VERSION" -i "$SRC_DIR" -o "$OUT_APK"
+if ! java -jar "$APK_EDITOR" b -framework-version "$FRAMEWORK_VERSION" -i "$SRC_DIR" -o "$OUT_APK"; then
+    lite_warn "Settings Lite rebuild failed."
+    exit 1
+fi
 if [[ ! -f "$OUT_APK" ]]; then
     lite_warn "Rebuild failed: output APK not created."
     exit 1
@@ -308,6 +375,6 @@ OLD_MODE="$(stat -c '%a' "$TARGET_APK" 2>/dev/null || echo 644)"
 rm -f "$TARGET_APK"
 cp -f "$OUT_APK" "$TARGET_APK"
 chmod "$OLD_MODE" "$TARGET_APK" 2>/dev/null || true
+lite_log "Settings Lite rebuild success"
 lite_log "Settings Lite applied successfully."
-
 
