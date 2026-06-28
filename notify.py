@@ -425,6 +425,7 @@ def format_release_caption() -> str:
 
     changelog_link = "https://t.me/DeadZoneCloud/676"
     developer_link = "https://t.me/MohamedMezo1"
+    website_link = os.environ.get("WEBSITE_LINK", "https://deadzone.web.id/").strip() or "https://deadzone.web.id/"
 
     return (
         f"🚀 <b>DeadZone Lite {html.escape(version)} Released</b>\n\n"
@@ -435,7 +436,8 @@ def format_release_caption() -> str:
         f"🤖 <b>Android:</b> {html.escape(metadata['android'])}\n\n"
         "━━━━━━━━━━━━━━━\n\n"
         f"📋 <a href=\"{safe_link(changelog_link)}\">Changelogs</a>\n"
-        f"👨‍💻 <a href=\"{safe_link(developer_link)}\">Developer MEZO</a>\n\n"
+        f"\U0001F468\u200D\U0001F4BB <a href=\"{safe_link(developer_link)}\">Developer MEZO</a>\n"
+        f"\U0001F310 <a href=\"{safe_link(website_link)}\">Official Website</a>\n\n"
         "━━━━━━━━━━━━━━━\n\n"
         f"⬇️ <b>Download:</b> <a href=\"{safe_link(drive_link)}\">Click Here</a>\n\n"
         "━━━━━━━━━━━━━━━\n"
