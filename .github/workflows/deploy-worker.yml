@@ -1,0 +1,54 @@
+name: Deploy Worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - worker.js
+      - worker.sync.test.mjs
+      - package.json
+      - package-lock.json
+      - wrangler.toml
+      - wrangler.json
+      - wrangler.jsonc
+      - .github/workflows/deploy-worker.yml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies with npm ci
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        run: npm ci
+
+      - name: Install dependencies with npm install
+        if: ${{ hashFiles('package-lock.json') == '' && hashFiles('package.json') != '' }}
+        run: npm install
+
+      - name: Skip dependency install when no package manifest exists
+        if: ${{ hashFiles('package-lock.json') == '' && hashFiles('package.json') == '' }}
+        run: echo "No package.json or package-lock.json found; skipping npm install."
+
+      - name: Validate worker syntax
+        run: node --check worker.js
+
+      - name: Run worker tests
+        if: ${{ hashFiles('worker.sync.test.mjs') != '' }}
+        run: node --test worker.sync.test.mjs
+
+      - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
