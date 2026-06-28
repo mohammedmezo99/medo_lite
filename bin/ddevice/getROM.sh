@@ -6,13 +6,8 @@ source $work_dir/functions.sh
 # Check whether it is a local package or a link
 if [ ! -f "${baserom}" ] && [ "$(echo $baserom |grep http)" != "" ]; then
     info "Download link detected, starting a download..."
-    downloaded_baserom="$(basename "${baserom%%\?*}")"
-    if ! aria2c --max-download-limit=1024M --file-allocation=none --continue=true --auto-file-renaming=false --allow-overwrite=true --connect-timeout=15 --timeout=60 --max-tries=5 --retry-wait=10 -s10 -x10 -j10 "${baserom}"; then
-        echo "Download failed"
-        rm -f "$downloaded_baserom" "$downloaded_baserom.aria2"
-        exit 1
-    fi
-    baserom="$downloaded_baserom"
+    aria2c --max-download-limit=1024M --file-allocation=none -s10 -x10 -j10 ${baserom}
+    baserom=$(basename ${baserom} | sed 's/\?t.*//')
     if [ -f $work_dir/topaz-ota_full-OS3.0.2.0.WMGCNXM-user-16.0-b487e82659.zip ]; then
         baserom="topaz-ota_full-OS3.0.2.0.WMGCNXM-user-16.0-b487e82659.zip"
         info "BASEROM: ${baserom}"
@@ -21,11 +16,6 @@ if [ ! -f "${baserom}" ] && [ "$(echo $baserom |grep http)" != "" ]; then
         info "BASEROM: ${baserom}"
     elif [ ! -f "${baserom}" ]; then
         error "Download error!"
-    fi
-    if ! unzip -tq "$baserom" >/dev/null; then
-        echo "Downloaded ROM ZIP is incomplete or corrupt"
-        rm -f "$baserom" "$baserom.aria2"
-        exit 1
     fi
 elif [ -f "${baserom}" ]; then
     info "BASEROM: ${baserom}"
@@ -64,30 +54,7 @@ else
     base_rom_code="Unknown"
 fi
 
-device_f=$(python3 - "$device_code" << 'PY'
-import re
-import sys
-
-value = sys.argv[1].strip().lower()
-value = re.sub(r"[^a-z0-9]+", "", value)
-
-for suffix in (
-    "eeaglobal",
-    "inglobal",
-    "idglobal",
-    "ruglobal",
-    "twglobal",
-    "trglobal",
-    "jpglobal",
-    "global",
-):
-    if value.endswith(suffix):
-        value = value[:-len(suffix)]
-        break
-
-print(value or "unknown")
-PY
-)
+device_f=$(echo $device_code | sed 's/\(Global\|EEAGlobal\|INGlobal\|IDGlobal\|RUGlobal\|TWGlobal\|TRGlobal\|JPGlobal\)$//' | tr '[:upper:]' '[:lower:]')
 
 # Determine Device Type
 info "Get Device Type"
@@ -99,14 +66,14 @@ elif echo "$device_code" | grep -q 'IDGlobal'; then
     DEVICE_TYPE="IDGlobal"
 elif echo "$device_code" | grep -q 'RUGlobal'; then
     DEVICE_TYPE="RUGlobal"
-elif echo "$device_code" | grep -q 'TWGlobal'; then
-    DEVICE_TYPE="TWGlobal"
-elif echo "$device_code" | grep -q 'TRGlobal'; then
-    DEVICE_TYPE="TRGlobal"
 elif echo "$device_code" | grep -q 'JPGlobal'; then
     DEVICE_TYPE="JPGlobal"
 elif echo "$device_code" | grep -q 'Global'; then
     DEVICE_TYPE="Global"
+elif echo "$device_code" | grep -q 'TWGlobal'; then
+    DEVICE_TYPE="TWGlobal"
+elif echo "$device_code" | grep -q 'TRGlobal'; then
+    DEVICE_TYPE="TRGlobal"
 else
     DEVICE_TYPE="China"
 fi
@@ -132,3 +99,4 @@ echo $base_rom_code > $work_dir/bin/ddevice/os_code.txt
 echo $device_code > $work_dir/bin/ddevice/device_code.txt
 echo $DEVICE_TYPE > $work_dir/bin/ddevice/device_type.txt
 echo $ROM_OS > $work_dir/bin/ddevice/rom_os.txt
+

@@ -4,11 +4,13 @@ case $device_code in
 	#13 13Pro 13Ultra K60Pro MIXFold 12TB 14Ultra
 	fuxi | nuwa | ishtar | socrates | babylon | marble | aurora | dew | garnet | vermeer) size=9663676416;;
 	#Xiaomi 15 Pro/Ultra Redmi Turbo 4 Pro
-	haotian | xuanyuan | onyx | miro | klimt | dada | yudi | rodin | zorn | sheng) size=11811160064;;
+	haotian | xuanyuan | onyx | miro | klimt | dada | yudi | rodin | zorn | sheng | luming) size=11811160064;;
 	#Xiaomi Mix Fold 4
 	myron) size=14495514624;;
 	#Xiaomi 17 Series
 	annibale | pudding | popsicle | pandora) size=13421772800;;
+	#Xiaomi 17 Ultra
+	nezha) size=15300820992;;
 	#Redmi Note 12 5G
 	sunstone) size=9122611200;;
 	#Xiaomi 14 , 14 Pro

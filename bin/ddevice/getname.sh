@@ -1,21 +1,17 @@
 #!/bin/bash
 work_dir=$(pwd)
-source "$work_dir/functions.sh"
+source $work_dir/functions.sh
 
-ARG_KEY="${1:-}"
+FILE_JSON="$work_dir/bin/ddevice/data/devices.json"
+KEY="${1:-$(cat $work_dir/bin/ddevice/device_f.txt)}"
 
-PYTHON_BIN="python3"
-if ! command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python"
+# Find the exact key with correct capitalization from the reference lists
+EXACT_KEY=$(grep -ix "$KEY" "$work_dir/bin/ddevice/data/devices_data.txt" 2>/dev/null || grep -ix "$KEY" "$work_dir/bin/ddevice/data/pad_data.txt" 2>/dev/null)
+
+if [ -z "$EXACT_KEY" ]; then
+  # Fallback to key itself if not matched in the lists
+  EXACT_KEY="$KEY"
 fi
 
-"$PYTHON_BIN" "$work_dir/bin/ddevice/resolve_device.py" "$ARG_KEY"
-
-VALUE="$(cat "$work_dir/bin/ddevice/device_name.txt" 2>/dev/null | tr -d '\r\n')"
-if [ -z "$VALUE" ]; then
-  VALUE="Unknown Xiaomi Device"
-  printf '%s\n' "$VALUE" > "$work_dir/bin/ddevice/name_devices.txt"
-  printf '%s\n' "$VALUE" > "$work_dir/bin/ddevice/device_name.txt"
-fi
-
-info "Device Name: $VALUE"
+VALUE=$(jq -r --arg key "$EXACT_KEY" '.[$key] // "Key not found"' "$FILE_JSON")
+echo "$VALUE" > $work_dir/bin/ddevice/name_devices.txt

@@ -1,32 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+# Copyright by affggh
+# This program based on Apache 2.0 LICENES
 import os
-from typing import Generator
+
+AUTHOR = "affggh"
+LICENES = "Apache 2.0"
+VERSION = "1.0"
 
 
 def scanfs(file) -> dict:
     filesystem_config = {}
     with open(file, "r") as file_:
         for i in file_.readlines():
-            try:
-                filepath, *other = i.strip().split()
-            except Exception or BaseException:
-                print(f'[W] Skip {i}')
-                continue
+            filepath, *other = i.strip().split()
             filesystem_config[filepath] = other
-            if (long := len(other)) > 4:
-                print(f"[W] {i[0]} has too much data-{long}.")
+            if long := len(other) > 4:
+                print(f"[Warn] {i[0]} has too much data-{long}.")
     return filesystem_config
 
 
-def scan_dir(folder) -> Generator:
-    allfiles = ['/', '/lost+found', f'/{os.path.basename(folder)}/lost+found', f'/{os.path.basename(folder)}/']
+def scan_dir(folder) -> list:
+    allfiles = ['/']
     if os.name == 'nt':
         yield os.path.basename(folder).replace('\\', '')
     elif os.name == 'posix':
         yield os.path.basename(folder).replace('/', '')
     else:
-        yield os.path.basename(folder)
+        return ''
     for root, dirs, files in os.walk(folder, topdown=True):
         for dir_ in dirs:
             yield os.path.join(root, dir_).replace(folder, os.path.basename(folder)).replace('\\', '/')
@@ -36,34 +38,27 @@ def scan_dir(folder) -> Generator:
             yield rv
 
 
-def islink(file) -> str:
+def islink(file) -> str and None:
     if os.name == 'nt':
         if not os.path.isdir(file):
             with open(file, 'rb') as f:
-                if f.read(10) == b'!<symlink>':
-                    return f.read().decode("utf-16")[:-1]
+                if f.read(12) == b'!<symlink>\xff\xfe':
+                    return f.read().decode("utf-8").replace('\x00', '')
                 else:
-                    return ''
+                    return
     elif os.name == 'posix':
         if os.path.islink(file):
             return os.readlink(file)
         else:
-            return ''
+            return
 
 
-def fs_patch(fs_file, dir_path) -> tuple:
+def fs_patch(fs_file, dir_path) -> tuple:  # 接收两个字典对比
     new_fs = {}
     new_add = 0
     r_fs = {}
     print("FsPatcher: Load origin %d" % (len(fs_file.keys())) + " entries")
     for i in scan_dir(os.path.abspath(dir_path)):
-        if not i.isprintable():
-            tmp = ''
-            for c in i:
-                tmp += c if c.isprintable() else '*'
-            i = tmp
-        if ' ' in i:
-            i = i.replace(' ', '*')
         if fs_file.get(i):
             new_fs[i] = fs_file[i]
         else:
@@ -83,8 +78,6 @@ def fs_patch(fs_file, dir_path) -> tuple:
                     gid = '0'
                 mode = '0755'  # dir path always 755
                 config = [uid, gid, mode]
-            elif not os.path.exists(filepath):
-                config = ['0', '0', '0755']
             elif islink(filepath):
                 uid = '0'
                 if ("system/bin" in i) or ("system/xbin" in i) or ("vendor/bin" in i):
@@ -127,18 +120,30 @@ def fs_patch(fs_file, dir_path) -> tuple:
     return new_fs, new_add
 
 
-def main(dir_path, fs_config):
-    work_dir = os.getcwd()
-    os.chdir(work_dir)
+def main(dir_path, fs_config) -> None:
     new_fs, new_add = fs_patch(scanfs(os.path.abspath(fs_config)), dir_path)
     with open(fs_config, "w", encoding='utf-8', newline='\n') as f:
         f.writelines([i + " " + " ".join(new_fs[i]) + "\n" for i in sorted(new_fs.keys())])
     print('FsPatcher: Add %d' % new_add + " entries")
+def Usage():
+    print("Usage:")
+    print("%s <folder> <fs_config>" %(sys.argv[0]))
+    print("    This script will auto patch fs_config")
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     import sys
-    if len(sys.argv) != 3:
-        print("Usage: python script.py <directory_path> <fs_config_file>")
-    else:
+    global VERBOSE
+    VERBOSE = False
+    if len(sys.argv) < 3:
+        Usage()
+        sys.exit()
+    if len(sys.argv) > 3:
+        if sys.argv[3] == '-i':
+            VERBOSE = True
+    if (os.path.isdir(sys.argv[1]) or os.path.isfile(sys.argv[2])):
+        print("FSPATCH by [%s]\nLICENES [%s]\nVERSION [%s]" %(AUTHOR, LICENES, VERSION))
         main(sys.argv[1], sys.argv[2])
+        print("Done!")
+    else:
+        print("The path or filetype you have given may wrong,please check it wether correct.")
+        Usage()

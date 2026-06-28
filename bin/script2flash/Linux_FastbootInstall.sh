@@ -1,143 +1,119 @@
 #!/bin/bash
-echo "Welcome to DeadZone Classic ROM Installer"
+# NullCode1337
 cd "$(dirname "$0")" || exit 1
 
-# Define commands
-FASTBOOT="fastboot"
+fastboot_bin="fastboot"
+adb_bin="adb"
+zstd_bin="zstd"
 
-if ! command -v $FASTBOOT >/dev/null 2>&1; then
-    # Check if bundled fastboot exists for Linux
-    if [ -x "META-INF/bin/fastboot" ]; then
-        FASTBOOT="META-INF/bin/fastboot"
-    else
-        echo "fastboot not found. Attempting to install via apt..."
-        sudo apt-get update
-        sudo apt-get install -y android-tools-fastboot || sudo apt-get install -y fastboot
-        if command -v fastboot >/dev/null 2>&1; then
-            FASTBOOT="fastboot"
-        else
-            echo "Failed to install fastboot. Please install it manually."
-            read -r -p "Press Enter to exit..."
-            exit 1
-        fi
+for tool in "$fastboot_bin" "$adb_bin" "$zstd_bin"; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "ERROR: '$tool' not found on PATH. Install platform-tools (adb/fastboot) and zstd, then try again."
+        exit 1
     fi
-fi
+done
 
-DeviceCodeRom=$(cat META-INF/Data/DeviceCode 2>/dev/null | tr -d '\r\n')
+DeviceCodeRom=$(cat "META-INF/Data/DeviceCode")
 
-echo ""
+echo
 echo "[i] - Read this information before flashing"
-echo ""
+echo
 echo "1. Our ROM, like most other custom ROMS, requires an unlocked bootloader! If your device is NOT, please close this window."
 echo "2. You have to choose carefully else you will LOST ALL DATA!"
-echo "3. THIS IS A DeadZone ROM!!! If you see someone sell or install this ROM for fees, please CONTACT Mohammed MEZO  NOW."
+echo "3. THIS IS A FREE ROM!!! If you see someone sell or install this ROM for fees, please CONTACT MEZO NOW."
 echo "4. We will NOT take responsibility if you brick your phone or lose all data while installing this ROM."
 echo "5. Make sure you have downloaded the exact build for your device, else you might get bricked."
-echo ""
-echo "[i] - If you have read and agreed to all of the above, press Enter to start the installation."
-echo "[i] - Else, close this terminal window."
-read -r -p ""
+echo
+echo "[i] - If you have read and agreed to all of the above, press any key to start the installation."
+echo "[i] - Else, close this terminal (Ctrl+C)."
+read -n 1 -s -r
+echo
 
 echo "========================================================================================="
 echo " Please Choose Format Option Before Flash ROM"
-echo ""
-echo "   y = Format All Data(Clean Flash)         "
-echo "   n = Keep Data And Document(Dirty Flash)"
-echo ""
+echo
+echo "   y = Format All Data (Clean Flash)"
+echo "   n = Keep Data And Document (Dirty Flash)"
+echo
 echo "========================================================================================="
-read -r -p "Your choice {y/n}: " CHOICE
+read -rp "Your choice {y/n}: " CHOICE
 echo "========================================================================================="
-echo "Make Sure Your Devices Is On Fastboot Mode"
-echo "If It Still Not Detect Please Install Driver"
+echo "Make Sure Your Device Is In Fastboot Mode"
+echo "If It Still Not Detected Please Install Driver"
 echo "And Try Again..."
 echo "========================================================================================="
 
-DeviceCodeReal=$($FASTBOOT getvar product 2>&1 | grep -i "product:" | awk '{print $2}' | tr -d '\r\n')
-fqlx=$($FASTBOOT getvar slot-count 2>&1 | grep -i "slot-count:" | awk '{print $2}' | tr -d '\r\n')
+DeviceCodeReal=$("$fastboot_bin" getvar product 2>&1 | grep "^product:" | awk '{print $2}')
+fqlx=$("$fastboot_bin" getvar slot-count 2>&1 | grep "^slot-count:" | awk '{print $2}')
 
-if [ "$fqlx" = "2" ]; then
+if [ "$fqlx" == "2" ]; then
     fqlx="AB"
 else
     fqlx="A"
 fi
 
-if [ "$DeviceCodeReal" = "mars" ]; then
+if [ "$DeviceCodeReal" == "mars" ]; then
     DeviceCodeReal="star"
 fi
 
-# Check DeviceCode Match
-if [[ "$DeviceCodeReal" != *"$DeviceCodeRom"* ]]; then
-    echo "Device Code Mismatch!"
-    echo "Device codename does not match, your device is \"$DeviceCodeReal\". This rom file is for \"$DeviceCodeRom\"."
-    read -r -p "Press Enter to exit..."
+if [[ "$DeviceCodeReal" != "$DeviceCodeRom"* ]]; then
+    echo " Device codename does not match, your device is \"$DeviceCodeReal\". This rom file is for \"$DeviceCodeRom\"."
+    read -n 1 -s -r -p "Press any key to exit..."
+    echo
     exit 1
 fi
 
 for f in *.img.zst; do
     [ -e "$f" ] || continue
     par="${f%.img.zst}"
-    rm -f "${par}.img" 2>/dev/null
-    echo "  Extract ${par} ..."
-    if command -v zstd >/dev/null 2>&1; then
-        zstd -d "$f" -o "${par}.img"
+    rm -f "${par}.img"
+    echo "  Extract $par ..."
+    "$zstd_bin" -d "$f" -o "${par}.img"
+done
+
+for img in images/*; do
+    [ -e "$img" ] || continue
+    par="$(basename "$img")"
+    par="${par%.*}"
+    url="$img"
+    if [ "$par" == "cust" ]; then
+        "$fastboot_bin" flash "$par" "$url" >/dev/null 2>&1
+    elif [ "$par" == "preloader_raw" ]; then
+        "$fastboot_bin" flash preloader_a "$url" >/dev/null 2>&1
+        "$fastboot_bin" flash preloader_b "$url" >/dev/null 2>&1
+        "$fastboot_bin" flash preloader1 "$url" >/dev/null 2>&1
+        "$fastboot_bin" flash preloader2 "$url" >/dev/null 2>&1
+    elif [ "$fqlx" == "AB" ]; then
+        "$fastboot_bin" flash "${par}_a" "$url"
+        "$fastboot_bin" flash "${par}_b" "$url"
     else
-        echo "zstd not found. Attempting to install via apt..."
-        sudo apt-get update
-        sudo apt-get install -y zstd
-        if command -v zstd >/dev/null 2>&1; then
-            zstd -d "$f" -o "${par}.img"
-        else
-            echo "Failed to install zstd. Please install it manually."
-            exit 1
-        fi
+        "$fastboot_bin" flash "$par" "$url"
     fi
 done
 
-if [ -d "images" ]; then
-    for f in images/*; do
-        [ -e "$f" ] || continue
-        filename=$(basename "$f")
-        par="${filename%.*}"
-        url="$f"
-
-        if [ "$par" = "cust" ]; then
-            $FASTBOOT flash "$par" "$url" >/dev/null 2>&1
-        elif [ "$par" = "preloader_raw" ]; then
-            $FASTBOOT flash preloader_a "$url" >/dev/null 2>&1
-            $FASTBOOT flash preloader_b "$url" >/dev/null 2>&1
-            $FASTBOOT flash preloader1 "$url" >/dev/null 2>&1
-            $FASTBOOT flash preloader2 "$url" >/dev/null 2>&1
-        elif [ "$fqlx" = "AB" ]; then
-            $FASTBOOT flash "${par}_a" "$url"
-            $FASTBOOT flash "${par}_b" "$url"
-        else
-            $FASTBOOT flash "$par" "$url"
-        fi
-    done
+if [ -f super.img ]; then
+    "$fastboot_bin" flash super super.img
+    rm -f super.img
 fi
 
-if [ -f "super.img" ]; then
-    $FASTBOOT flash super super.img
-    rm -f super.img 2>/dev/null
-fi
-
-if [ "$CHOICE" = "y" ] || [ "$CHOICE" = "Y" ]; then
+if [[ "$CHOICE" =~ ^[Yy]$ ]]; then
     echo "  Formatting..."
-    $FASTBOOT erase frp >/dev/null 2>&1
-    $FASTBOOT erase userdata >/dev/null 2>&1
-    $FASTBOOT erase metadata >/dev/null 2>&1
-    echo ""
+    "$fastboot_bin" erase frp >/dev/null 2>&1
+    "$fastboot_bin" erase userdata >/dev/null 2>&1
+    "$fastboot_bin" erase metadata >/dev/null 2>&1
+    echo
 fi
 
-echo "  All done,Your Devices Is Automatic Restart..."
+echo "  All done, Your Device Is Automatically Restarting..."
 echo "  Now Wait For 10-15 Min For Booting"
-echo "  "
-echo ""
+echo
+echo
 
-if [ "$fqlx" = "AB" ]; then
-    $FASTBOOT set_active a >/dev/null 2>&1
+if [ "$fqlx" == "AB" ]; then
+    "$fastboot_bin" set_active a >/dev/null 2>&1
 fi
-$FASTBOOT reboot
 
-read -r -p "Press Enter to exit..."
+"$fastboot_bin" reboot
+read -n 1 -s -r -p "Press any key to exit..."
+echo
 exit 0
