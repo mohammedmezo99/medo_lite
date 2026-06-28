@@ -14,6 +14,7 @@ globalThis.__workerTestables = {
   formatLatestBuild,
   formatRecentBuilds,
   callTelegramApi,
+  sendTelegramMessage,
   sanitizeBuildMetadata,
   handleCallbackQuery,
   publishLatestManualBuild,
@@ -278,6 +279,7 @@ async function main() {
     formatLatestBuild,
     formatRecentBuilds,
     callTelegramApi,
+    sendTelegramMessage,
     sanitizeBuildMetadata,
     handleCallbackQuery,
     publishLatestManualBuild,
@@ -596,6 +598,47 @@ async function main() {
 
   {
     const env = makeEnv();
+    const calls = [];
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(" "));
+    __setFetchImpl(async (url, options) => {
+      const payload = JSON.parse(options.body);
+      calls.push({ url, options: payload });
+      if (calls.length === 1) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error_code: 400,
+          description: "Bad Request: message to be replied not found",
+        }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 900 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    try {
+      await sendTelegramMessage(env, "-100public", "hello", 123, "HTML");
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].options.reply_to_message_id, 123);
+    assert.equal(calls[0].options.parse_mode, "HTML");
+    assert.ok(!("reply_to_message_id" in calls[1].options));
+    assert.equal(calls[1].options.parse_mode, "HTML");
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /\[telegram\] API returned ok=false sendMessage description=Bad Request: message to be replied not found/);
+    assert.match(warnings[1], /\[telegram\] Reply target missing; retrying sendMessage without reply_to_message_id/);
+  }
+
+  {
+    const env = makeEnv();
     const warnings = [];
     const originalWarn = console.warn;
     console.warn = (...args) => warnings.push(args.join(" "));
@@ -606,6 +649,9 @@ async function main() {
       assert.fail("expected callTelegramApi to throw on non-OK HTTP response");
     } catch (error) {
       assert.equal(error.message, "telegram_send_failed");
+      assert.equal(error.telegramStatus, 400);
+      assert.equal(error.telegramDescription, "bad html payload");
+      assert.equal(error.telegramBody, "bad html payload");
     } finally {
       console.warn = originalWarn;
     }
@@ -631,6 +677,9 @@ async function main() {
       assert.fail("expected callTelegramApi to throw when Telegram returns ok=false");
     } catch (error) {
       assert.equal(error.message, "telegram_send_failed");
+      assert.equal(error.telegramStatus, 200);
+      assert.equal(error.telegramDescription, "Bad Request: can't parse entities");
+      assert.match(error.telegramBody, /can't parse entities/);
     } finally {
       console.warn = originalWarn;
     }

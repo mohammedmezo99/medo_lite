@@ -1658,7 +1658,21 @@ async function sendTelegramMessage(env, chatId, text, replyToMessageId, parseMod
     payload.parse_mode = parseMode;
   }
 
-  await callTelegramApi(env, "sendMessage", payload, "telegram_send_failed");
+  try {
+    await callTelegramApi(env, "sendMessage", payload, "telegram_send_failed");
+  } catch (error) {
+    if (
+      replyToMessageId &&
+      String(error?.telegramDescription || "").toLowerCase().includes("message to be replied not found")
+    ) {
+      console.warn("[telegram] Reply target missing; retrying sendMessage without reply_to_message_id");
+      const retryPayload = { ...payload };
+      delete retryPayload.reply_to_message_id;
+      await callTelegramApi(env, "sendMessage", retryPayload, "telegram_send_failed");
+      return;
+    }
+    throw error;
+  }
 }
 
 async function answerCallbackQuery(env, callbackQueryId, text) {
@@ -1700,7 +1714,11 @@ async function callTelegramApi(env, method, payload, errorCode) {
 
   if (!response.ok) {
     console.warn(`[telegram] API failed ${method} status=${response.status} body=${responseText}`);
-    throw new Error(errorCode);
+    const error = new Error(errorCode);
+    error.telegramStatus = response.status;
+    error.telegramDescription = responseText || "";
+    error.telegramBody = responseText;
+    throw error;
   }
 
   const data = responseText
@@ -1714,7 +1732,11 @@ async function callTelegramApi(env, method, payload, errorCode) {
     : null;
   if (!data?.ok) {
     console.warn(`[telegram] API returned ok=false ${method} description=${data?.description || "unknown"}`);
-    throw new Error(errorCode);
+    const error = new Error(errorCode);
+    error.telegramStatus = response.status;
+    error.telegramDescription = data?.description || responseText || "";
+    error.telegramBody = responseText;
+    throw error;
   }
 
   return data.result || null;
