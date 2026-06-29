@@ -13,7 +13,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parent
 TIMEOUT = 30
-RELEASE_IMAGE = ROOT / "assets" / "release" / "lite.png"
+RELEASE_IMAGE = ROOT / "assets" / "release" / "gamingplus.png"
 
 PRIVATE_STAGE_LABELS = {
     "request_received": "📩 Request received",
@@ -163,7 +163,7 @@ def build_output_filename(version: str, codename: str, rom_version: str, region:
     safe_rom_version = (rom_version or "Unknown").strip()
     safe_region = (region or "Unknown").strip()
     safe_android = (android_tag or "Unknown").strip()
-    return f"DeadZoneLite_v{safe_version}_{codename}_{safe_rom_version}_{safe_region}-{safe_android}.zip"
+    return f"DeadZone_GamingPlus_v{safe_version}_{codename}_{safe_rom_version}_{safe_region}-{safe_android}.zip"
 
 
 def build_output_path(filename: str) -> Path:
@@ -319,7 +319,7 @@ def get_metadata() -> dict:
         "deadZoneVersion": version,
         "codename": codename,
         "codename_lower": codename.lower(),
-        "style": "Lite",
+        "style": "GamingPlus",
         "rom_version": rom_version,
         "romVersion": rom_version,
         "region": region,
@@ -428,7 +428,7 @@ def format_release_caption() -> str:
     website_link = os.environ.get("WEBSITE_LINK", "https://deadzone.web.id/").strip() or "https://deadzone.web.id/"
 
     return (
-        f"🚀 <b>DeadZone Lite {html.escape(version)} Released</b>\n\n"
+        f"🚀 <b>DeadZone GamingPlus {html.escape(version)} Released</b>\n\n"
         f"📱 <b>Device:</b> {html.escape(metadata['device_name'])}\n"
         f"🧩 <b>Codename:</b> #{html.escape(metadata['codename_lower'])}\n"
         f"⚙️ <b>ROM:</b> {html.escape(metadata['rom_version'])}\n"
@@ -441,7 +441,7 @@ def format_release_caption() -> str:
         "━━━━━━━━━━━━━━━\n\n"
         f"⬇️ <b>Download:</b> <a href=\"{safe_link(drive_link)}\">Click Here</a>\n\n"
         "━━━━━━━━━━━━━━━\n"
-        f"#{html.escape(metadata['codename_lower'])} #DeadZoneLite "
+        f"#{html.escape(metadata['codename_lower'])} #DeadZoneGamingPlus "
         f"#{html.escape(metadata['hyperos_tag'])} #{html.escape(metadata['android_hash_tag'])} #MEZO"
     )
 

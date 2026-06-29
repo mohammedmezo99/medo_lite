@@ -14,11 +14,11 @@ const BUILD_USAGE_MESSAGE = `Usage:
 Example:
 /build zircon china`;
 const DISPATCH_FAILURE_MESSAGE = "Build request could not be started. Please contact MEZO.";
-const ACK_MESSAGE = "\u{1F4E5} Link received by MEZO.\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.";
+const ACK_MESSAGE = "\u{1F4E5} Link received by MEZO.\n\u26A1 DeadZone GamingPlus is now building.\n\u23F3 Please wait 40–60 minutes.";
 const HELP_MESSAGE = `🔥 <b>DeadZone Bot</b>
 
 ⚡️ <b>Available now:</b>
-✨ DeadZone Lite ROM Builds
+✨ DeadZone GamingPlus ROM Builds
 
 🎮 <b>Premium styles available:</b>
 🚀 GamingPlus / 👑 Legend / 🥷 Ninja
@@ -26,10 +26,10 @@ const HELP_MESSAGE = `🔥 <b>DeadZone Bot</b>
 ━━━━━━━━━━━━━━━
 
 📥 <code>/mezo &lt;ROM_LINK&gt;</code>
-🔧 Send your ROM link to <a href="https://t.me/MohamedMezo1">MEZO</a> for a fast and clean Lite build.
+🔧 Send your ROM link to <a href="https://t.me/MohamedMezo1">MEZO</a> for a fast and clean GamingPlus build.
 
 📦 <code>/mezo &lt;codename&gt;</code>
-🔎 Check available DeadZone Lite builds for your device.
+🔎 Check available DeadZone GamingPlus builds for your device.
 
 ━━━━━━━━━━━━━━━
 
@@ -386,11 +386,11 @@ async function handleNewChatMembers(env, message) {
   const text = [
     `👋 Welcome ${names} to DeadZone Discussion!`,
     "",
-    "🔥 DeadZone Lite Builds",
+    "🔥 DeadZone GamingPlus Builds",
     "",
     "Use:",
     "/mezo <codename> — Show available DeadZone builds",
-    "/mezo <ROM_LINK> — Request a new Lite build",
+    "/mezo <ROM_LINK> — Request a new GamingPlus build",
     "",
     "Example:",
     "/mezo zircon",
@@ -439,7 +439,7 @@ async function formatPublishedRomsForCodename(env, codename) {
     return [
       `❌ No DeadZone builds found for ${escapedCodename}.`,
       "",
-      "This device has no published DeadZone Lite builds yet.",
+      "This device has no published DeadZone GamingPlus builds yet.",
       "",
       "You can request a new build with:",
       "<code>/mezo &lt;ROM_LINK&gt;</code>",
@@ -506,7 +506,7 @@ async function handleBuildCommand(env, message, args) {
     : `\u{1F4E5} Latest ${parsed.codename.toUpperCase()} ROM selected by MEZO.`;
 
   await startBuildFromRomLink(env, message, newest.downloadLink, {
-    ackMessage: `${ackPrefix}\n\u{1F9E9} ${newest.romVersion} • ${newest.android}\n\u26A1 DeadZone Lite is now building.\n\u23F3 Please wait 40–60 minutes.`,
+    ackMessage: `${ackPrefix}\n\u{1F9E9} ${newest.romVersion} • ${newest.android}\n\u26A1 DeadZone GamingPlus is now building.\n\u23F3 Please wait 40–60 minutes.`,
     metadata: romToBuildMetadata(newest),
   });
   return okResponse();
@@ -646,7 +646,7 @@ async function formatLatestBuild(env) {
   }
 
   return [
-    "\u2705 Latest DeadZone Lite Build",
+    "\u2705 Latest DeadZone GamingPlus Build",
     "",
     `\u{1F4F1} Device: ${row.device_name || "Unknown"}`,
     `\u{1F9E9} ROM: ${row.rom_version || "Unknown"}`,
@@ -1384,7 +1384,7 @@ function formatReleaseCaptionFromBuild(row) {
   const androidHashTag = deriveAndroidHashTag(row?.android);
 
   return [
-    `🚀 <b>DeadZone Lite ${escapeHtml(version)} Released</b>`,
+    `🚀 <b>DeadZone GamingPlus ${escapeHtml(version)} Released</b>`,
     "",
     `📱 <b>Device:</b> ${escapeHtml(row?.device_name || "Unknown Xiaomi Device")}`,
     `🧩 <b>Codename:</b> #${escapeHtml(codename)}`,
@@ -1403,13 +1403,13 @@ function formatReleaseCaptionFromBuild(row) {
     `⬇️ <b>Download:</b> <a href="${escapeHtml(driveLink)}">Click Here</a>`,
     "",
     "━━━━━━━━━━━━━━━",
-    `#${escapeHtml(codename)} #DeadZoneLite #${escapeHtml(hyperOsTag)} #${escapeHtml(androidHashTag)} #MEZO`,
+    `#${escapeHtml(codename)} #DeadZone_GamingPlus #${escapeHtml(hyperOsTag)} #${escapeHtml(androidHashTag)} #MEZO`,
   ].join("\n");
 }
 
 function formatDeadZoneVersion(finalZip) {
   const text = String(finalZip || "").trim();
-  const match = text.match(/DeadZoneLite_(v[^_]+)_/i);
+  const match = text.match(/DeadZone_GamingPlus_(v[^_]+)_/i);
   if (!match?.[1]) {
     return "Latest";
   }

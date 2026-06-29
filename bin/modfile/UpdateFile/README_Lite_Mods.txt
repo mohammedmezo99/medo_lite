@@ -1,4 +1,4 @@
-# DeadZone Lite UpdateFile Mods
+# DeadZone GamingPlus UpdateFile Mods
 
 Drop the contents of `bin/modfile/UpdateFile` into the same path in the repo.
 
