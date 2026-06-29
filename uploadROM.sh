@@ -97,7 +97,7 @@ else
     android_tag="A${android_raw%%.*}"
 fi
 
-final_zip="DeadZoneLite_${version}_${codename}_${base_rom_code}_${region_stable}-${android_tag}.zip"
+final_zip="DeadZone_GamingPlus_${version}_${codename}_${base_rom_code}_${region_stable}-${android_tag}.zip"
 output_file="out/${final_zip}"
 
 repack "Compressing super.img"
