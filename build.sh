@@ -24,26 +24,51 @@ rm -rf $work_dir/build
 
 source "$work_dir/bin/ddevice/getROM.sh" "$baserom"
 
-if unzip -l ${baserom} | grep -q "payload.bin"; then
+archive_type="zip"
+archive_list="$(mktemp)"
+
+case "${baserom}" in
+    *.tgz|*.tar.gz|*.tar)
+        archive_type="tar"
+        tar -tf "${baserom}" > "${archive_list}" || {
+            error "Archive validation failed: tar cannot read ${baserom}"
+            exit 1
+        }
+        ;;
+    *)
+        archive_type="zip"
+        unzip -Z1 "${baserom}" > "${archive_list}" || {
+            error "Archive validation failed: unzip cannot read ${baserom}"
+            exit 1
+        }
+        ;;
+esac
+
+if grep -Eq '(^|/)payload\.bin$' "${archive_list}"; then
     baserom_type="payload"
     echo $baserom_type > $work_dir/bin/ddevice/romtype.txt
     unpack "Found payload.bin file"
     super_list="vendor mi_ext odm odm_dlkm system system_dlkm vendor_dlkm product product_dlkm system_ext"
     unpack "ROM validation passed."
-elif unzip -l ${baserom} | grep -q "br$";then
+elif grep -Eq '\.new\.dat\.br$' "${archive_list}"; then
     baserom_type="br"
     echo $baserom_type > $work_dir/bin/ddevice/romtype.txt
     super_list="system vendor product odm system_ext mi_ext"
-    unpack "Found broli file"
+    unpack "Found brotli new.dat.br files"
     unpack "ROM validation passed."
-elif unzip -l ${baserom} | grep -q "images/super.img*"; then
-    unpack "Found super.img.* files"
+elif grep -Eq '(^|/)images/super\.img(\.[0-9]+)?$|(^|/)super\.img(\.[0-9]+)?$' "${archive_list}"; then
+    baserom_type="super"
+    echo $baserom_type > $work_dir/bin/ddevice/romtype.txt
     is_base_rom_eu=true
+    unpack "Found super.img file(s)"
     unpack "ROM validation passed."
 else
-    error "Unpack failed"
+    rm -f "${archive_list}"
+    error "Unpack failed: unsupported ROM archive layout"
     exit 1
 fi
+
+rm -f "${archive_list}"
 
 rm -rf app
 rm -rf tmp
@@ -56,22 +81,73 @@ mkdir -p build/baserom/images/
 
 # Extract partitions
 if [[ ${baserom_type} == 'payload' ]]; then
-    unpack "Extracting files payload.bin..."
-    unzip ${baserom} payload.bin -d build/baserom >/dev/null 2>&1 || error "Extracting payload.bin error"
+    unpack "Extracting payload.bin..."
+
+    if [[ "${archive_type}" == "tar" ]]; then
+        tar -xf "${baserom}" -C build/baserom --wildcards '*/payload.bin' 'payload.bin' >/dev/null 2>&1 || error "Extracting payload.bin error"
+    else
+        unzip "${baserom}" '*payload.bin' -d build/baserom >/dev/null 2>&1 || error "Extracting payload.bin error"
+    fi
+
+    payload_file="$(find build/baserom -type f -name payload.bin | head -n 1)"
+    if [[ -z "${payload_file}" ]]; then
+        error "payload.bin not found after extraction"
+        exit 1
+    fi
+
+    mv "${payload_file}" build/baserom/payload.bin
     unpack "File payload.bin extracted."
-elif [[ ${baserom_type} == 'br' ]];then
+
+elif [[ ${baserom_type} == 'br' ]]; then
     unpack "Extracting files *.new.dat.br"
-    unzip ${baserom} -d build/baserom >/dev/null 2>&1 || error "Extracting new.dat.br error"
+
+    if [[ "${archive_type}" == "tar" ]]; then
+        tar -xf "${baserom}" -C build/baserom >/dev/null 2>&1 || error "Extracting new.dat.br error"
+    else
+        unzip "${baserom}" -d build/baserom >/dev/null 2>&1 || error "Extracting new.dat.br error"
+    fi
+
+    # Normalize nested extraction paths
+    if find build/baserom -mindepth 2 -type f -name '*.new.dat.br' | grep -q .; then
+        find build/baserom -type f \( -name '*.new.dat.br' -o -name '*.transfer.list' -o -name '*.patch.*' -o -name 'dynamic_partitions_op_list' \) -exec mv -t build/baserom {} + 2>/dev/null || true
+    fi
+
     unpack "File new.dat.br extracted."
-elif [[ ${is_base_rom_eu} == true ]];then
-    unpack "Extracting files from BASETROM [super.img]"
-    unzip ${baserom} 'images/*' -d build/baserom >  /dev/null 2>&1 ||error "Extracting [super.img] error"
-    unpack "Merging super.img.* into super.img"
-    simg2img build/baserom/images/super.img.* build/baserom/images/super.img
-    rm -rf build/baserom/images/super.img.*
-    mv build/baserom/images/super.img build/baserom/super.img
-    unpack "[super.img] extracted."
-    if [[ -f build/baserom/images/cust.img.0 ]];then
+
+elif [[ ${is_base_rom_eu} == true ]]; then
+    unpack "Extracting super.img file(s)"
+
+    mkdir -p build/baserom/images
+
+    if [[ "${archive_type}" == "tar" ]]; then
+        tar -xf "${baserom}" -C build/baserom --wildcards '*/images/super.img*' '*/super.img*' 'images/super.img*' 'super.img*' '*/images/cust.img*' 'images/cust.img*' >/dev/null 2>&1 || error "Extracting [super.img] error"
+    else
+        unzip "${baserom}" '*images/super.img*' '*super.img*' '*images/cust.img*' -d build/baserom >/dev/null 2>&1 || error "Extracting [super.img] error"
+    fi
+
+    # Move any nested super/cust image parts into build/baserom/images
+    find build/baserom -type f \( -name 'super.img' -o -name 'super.img.*' -o -name 'cust.img' -o -name 'cust.img.*' \) | while read -r img; do
+        base="$(basename "$img")"
+        if [[ "$img" != "build/baserom/images/$base" ]]; then
+            mv "$img" "build/baserom/images/$base"
+        fi
+    done
+
+    if [[ -f build/baserom/images/super.img ]]; then
+        mv build/baserom/images/super.img build/baserom/super.img
+        unpack "[super.img] extracted."
+    elif compgen -G "build/baserom/images/super.img.*" > /dev/null; then
+        unpack "Merging split super.img.* into super.img"
+        simg2img build/baserom/images/super.img.* build/baserom/images/super.img
+        rm -rf build/baserom/images/super.img.*
+        mv build/baserom/images/super.img build/baserom/super.img
+        unpack "[super.img] extracted."
+    else
+        error "super.img not found after extraction"
+        exit 1
+    fi
+
+    if compgen -G "build/baserom/images/cust.img.*" > /dev/null; then
         simg2img build/baserom/images/cust.img.* build/baserom/images/cust.img
         rm -rf build/baserom/images/cust.img.*
     fi
@@ -131,7 +207,7 @@ rm -rf build/baserom/images/super.img
 
 
 mods "Gathering Devices Infomations"
-bash $work_dir/bin/ddevice/getname.sh $getvar
+python3 $work_dir/bin/ddevice/resolve_rom_metadata.py || python3 $work_dir/bin/ddevice/resolve_device.py $getvar || bash $work_dir/bin/ddevice/getname.sh $getvar
 bash $work_dir/bin/ddevice/fetchINFO.sh
 
 # Send a build notification with the full codename and version.
