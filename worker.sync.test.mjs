@@ -435,7 +435,7 @@ async function main() {
     assert.match(text, /drive\.google\.com/);
 
     const latest = await formatLatestBuild(env);
-    assert.match(latest, /Latest DeadZone Lite Build/);
+    assert.match(latest, /Latest DeadZone GamingPlus Build/);
     assert.match(latest, /drive\.google\.com/);
 
     const recent = await formatRecentBuilds(env);
@@ -552,7 +552,7 @@ async function main() {
         rom_version: "OS3.0.1",
         region: "Global",
         android: "A16",
-        final_zip: "DeadZoneLite_v1.23_TOPAZ_OS3.0.1_Global-A16.zip",
+        final_zip: "DeadZone_GamingPlus_v1.23_TOPAZ_OS3.0.1_Global-A16.zip",
         drive_link: "https://drive.google.com/file/d/topaz/view",
         deadzone_version: "v1.23",
         sha256: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -567,11 +567,11 @@ async function main() {
     assert.match(calls[0].url, /sendMessage$/);
     assert.equal(calls[0].options.chat_id, "-100release");
     assert.equal(calls[0].options.parse_mode, "HTML");
-    assert.match(calls[0].options.text, /DeadZone Lite v1\.23 Released/);
+    assert.match(calls[0].options.text, /DeadZone GamingPlus v1\.23 Released/);
     assert.match(calls[0].options.text, /Click Here/);
 
     const caption = formatReleaseCaptionFromBuild(env.medo_lite_bot.rows[0]);
-    assert.match(caption, /#topaz #DeadZoneLite #HyperOS3 #Android16 #MEZO/);
+    assert.match(caption, /#topaz #DeadZoneGamingPlus #HyperOS3 #Android16 #MEZO/);
   }
 
   {
@@ -597,7 +597,7 @@ async function main() {
         rom_version: "OS2.9.0",
         region: "India",
         android: "A15",
-        final_zip: "DeadZoneLite_v2.00_AGATE_OS2.9.0_India-A15.zip",
+        final_zip: "DeadZone_GamingPlus_v2.00_AGATE_OS2.9.0_India-A15.zip",
         drive_link: "https://drive.google.com/file/d/agate/view",
         deadzone_version: "v2.00",
         sha256: "1111111111111111111111111111111111111111111111111111111111111111",
@@ -634,7 +634,7 @@ async function main() {
         rom_version: "OS3.0.123.0",
         region: "Global",
         android: "A16",
-        final_zip: "DeadZoneLite_v1.06_ZIRCON_OS3.0.123.0_Global-A16.zip",
+        final_zip: "DeadZone_GamingPlus_v1.06_ZIRCON_OS3.0.123.0_Global-A16.zip",
         drive_link: "https://drive.google.com/file/d/api/view",
         deadzone_version: "v1.06",
         sha256: "2222222222222222222222222222222222222222222222222222222222222222",
@@ -655,7 +655,7 @@ async function main() {
         rom_version: "OS3.0.456.0",
         region: "China",
         android: "A16",
-        final_zip: "DeadZoneLite_v1.06_DADA_OS3.0.456.0_China-A16.zip",
+        final_zip: "DeadZone_GamingPlus_v1.06_DADA_OS3.0.456.0_China-A16.zip",
         drive_link: "https://drive.google.com/file/d/incomplete/view",
         deadzone_version: "v1.06",
       }),
@@ -677,7 +677,7 @@ async function main() {
       hyperOsVersion: "OS3",
       romVersion: "OS3.0.123.0",
       region: "Global",
-      filename: "DeadZoneLite_v1.06_ZIRCON_OS3.0.123.0_Global-A16.zip",
+      filename: "DeadZone_GamingPlus_v1.06_ZIRCON_OS3.0.123.0_Global-A16.zip",
       downloadUrl: "https://drive.google.com/file/d/api/view",
       changelogUrl: "https://example.com/changelog/api",
       sha256: "2222222222222222222222222222222222222222222222222222222222222222",
@@ -689,7 +689,7 @@ async function main() {
     const allPayload = await allResponse.json();
     const incomplete = allPayload.builds.find((build) => build.codename === "dada");
     assert.equal(incomplete?.status, "Metadata Incomplete");
-    assert.equal(incomplete?.filename, "DeadZoneLite_v1.06_DADA_OS3.0.456.0_China-A16.zip");
+    assert.equal(incomplete?.filename, "DeadZone_GamingPlus_v1.06_DADA_OS3.0.456.0_China-A16.zip");
     assert.equal(incomplete?.downloadUrl, "https://drive.google.com/file/d/incomplete/view");
     assert.equal(incomplete?.sha256, undefined);
     assert.equal(incomplete?.fileSize, undefined);
