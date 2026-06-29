@@ -7,6 +7,16 @@ source $work_dir/functions.sh
 if [ ! -f "${baserom}" ] && echo "${baserom}" | grep -Eq '^https?://'; then
     info "Download link detected, starting download..."
 
+    # Normalize SourceForge /download links to direct mirror URL
+    output_name=""
+    if echo "${baserom}" | grep -qE '^https?://sourceforge\.net/projects/[^/]+/files/.+/download'; then
+        sf_project="$(printf '%s\n' "${baserom}" | sed -E 's#^https?://sourceforge\.net/projects/([^/]+)/files/.*#\1#')"
+        sf_path="$(printf '%s\n' "${baserom}" | sed -E 's#^https?://sourceforge\.net/projects/[^/]+/files/(.*)/download.*#\1#')"
+        output_name="$(basename "${sf_path}")"
+        baserom="https://downloads.sourceforge.net/project/${sf_project}/${sf_path}"
+        info "SourceForge link normalized: ${output_name}"
+    fi
+
     rm -f "${work_dir}"/*.aria2
     before_list="$(mktemp)"
     after_list="$(mktemp)"
@@ -26,13 +36,21 @@ if [ ! -f "${baserom}" ] && echo "${baserom}" | grep -Eq '^https?://'; then
         -s10 -x10 -j10 \
         --header="User-Agent: Mozilla/5.0" \
         --header="Accept: */*" \
+        ${output_name:+-o "$output_name"} \
         "${baserom}" && download_ok=true
 
     if [ "${download_ok}" != true ]; then
         info "aria2c failed, trying curl fallback..."
-        curl -L --fail --retry 5 --retry-delay 10 \
-            -A "Mozilla/5.0" \
-            -OJ "${baserom}" && download_ok=true
+        if [ -n "${output_name}" ]; then
+            curl -L --fail --retry 5 --retry-delay 10 \
+                -A "Mozilla/5.0" \
+                -H "Referer: https://sourceforge.net/" \
+                -o "${output_name}" "${baserom}" && download_ok=true
+        else
+            curl -L --fail --retry 5 --retry-delay 10 \
+                -A "Mozilla/5.0" \
+                -OJ "${baserom}" && download_ok=true
+        fi
     fi
 
     find "${work_dir}" -maxdepth 1 -type f -printf '%f\n' | sort > "${after_list}"
