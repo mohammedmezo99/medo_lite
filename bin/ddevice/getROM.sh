@@ -4,24 +4,66 @@ baserom="$1"
 work_dir=$(pwd)
 source $work_dir/functions.sh
 # Check whether it is a local package or a link
-if [ ! -f "${baserom}" ] && [ "$(echo $baserom |grep http)" != "" ]; then
-    info "Download link detected, starting a download..."
-    aria2c --max-download-limit=1024M --file-allocation=none -s10 -x10 -j10 ${baserom}
-    baserom=$(basename ${baserom} | sed 's/\?t.*//')
-    if [ -f $work_dir/topaz-ota_full-OS3.0.2.0.WMGCNXM-user-16.0-b487e82659.zip ]; then
-        baserom="topaz-ota_full-OS3.0.2.0.WMGCNXM-user-16.0-b487e82659.zip"
-        info "BASEROM: ${baserom}"
-    elif [ -f $work_dir/munch-ota_full-OS2.0.215.0.VLMCNXM-user-15.0-7df6d5ee94.zip ]; then
-        baserom="munch-ota_full-OS2.0.215.0.VLMCNXM-user-15.0-7df6d5ee94.zip"
-        info "BASEROM: ${baserom}"
-    elif [ ! -f "${baserom}" ]; then
-        error "Download error!"
+if [ ! -f "${baserom}" ] && echo "${baserom}" | grep -Eq '^https?://'; then
+    info "Download link detected, starting download..."
+
+    rm -f "${work_dir}"/*.aria2
+    before_list="$(mktemp)"
+    after_list="$(mktemp)"
+    find "${work_dir}" -maxdepth 1 -type f -printf '%f\n' | sort > "${before_list}"
+
+    download_ok=false
+
+    aria2c \
+        --allow-overwrite=true \
+        --auto-file-renaming=false \
+        --continue=true \
+        --max-tries=5 \
+        --retry-wait=10 \
+        --connect-timeout=30 \
+        --timeout=120 \
+        --file-allocation=none \
+        -s10 -x10 -j10 \
+        --header="User-Agent: Mozilla/5.0" \
+        --header="Accept: */*" \
+        "${baserom}" && download_ok=true
+
+    if [ "${download_ok}" != true ]; then
+        info "aria2c failed, trying curl fallback..."
+        curl -L --fail --retry 5 --retry-delay 10 \
+            -A "Mozilla/5.0" \
+            -OJ "${baserom}" && download_ok=true
     fi
+
+    find "${work_dir}" -maxdepth 1 -type f -printf '%f\n' | sort > "${after_list}"
+
+    downloaded_file="$(comm -13 "${before_list}" "${after_list}" | grep -E '\.(zip|tgz|tar\.gz|tar|img)$' | head -n 1 || true)"
+
+    if [ -z "${downloaded_file}" ]; then
+        downloaded_file="$(find "${work_dir}" -maxdepth 1 -type f -printf '%f\n' | grep -E '\.(zip|tgz|tar\.gz|tar|img)$' | sort -r | head -n 1 || true)"
+    fi
+
+    rm -f "${before_list}" "${after_list}"
+
+    if [ "${download_ok}" != true ] || [ -z "${downloaded_file}" ] || [ ! -f "${work_dir}/${downloaded_file}" ]; then
+        error "Download error: no valid ROM archive was downloaded."
+        exit 1
+    fi
+
+    baserom="${downloaded_file}"
+
+    if file "${work_dir}/${baserom}" | grep -qiE 'HTML|text'; then
+        error "Download error: link downloaded an HTML/text page, not a ROM archive. Use a direct downloadable ROM link."
+        exit 1
+    fi
+
+    info "BASEROM: ${baserom}"
+
 elif [ -f "${baserom}" ]; then
     info "BASEROM: ${baserom}"
 else
     error "BASEROM: Invalid parameter"
-    exit
+    exit 1
 fi
 
 
