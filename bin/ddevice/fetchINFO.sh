@@ -3,8 +3,32 @@ work_dir=$(pwd)
 source $work_dir/functions.sh
 
 regionTYPE=$(cat $work_dir/bin/ddevice/device_type.txt)
-AndroidVer=$(< $work_dir/build/baserom/images/system/system/build.prop grep "ro.system.build.version.release" |awk 'NR==1' |cut -d '=' -f 2)
-sdkLevel=$(< $work_dir/build/baserom/images/system/system/build.prop grep "ro.system.build.version.sdk" |awk 'NR==1' |cut -d '=' -f 2)
+
+BUILD_PROP_FILE=""
+for candidate in \
+    "$work_dir/build/baserom/images/system/system/build.prop" \
+    "$work_dir/build/baserom/images/system/build.prop" \
+    "$work_dir/build/baserom/images/product/build.prop" \
+    "$work_dir/build/baserom/images/vendor/build.prop" \
+    "$work_dir/build/baserom/images/odm/build.prop"; do
+    if [ -f "$candidate" ]; then
+        BUILD_PROP_FILE="$candidate"
+        break
+    fi
+done
+
+if [ -z "$BUILD_PROP_FILE" ]; then
+    BUILD_PROP_FILE=$(find "$work_dir/build/baserom/images" "$work_dir/build/baserom" -type f -name build.prop 2>/dev/null | head -n 1)
+fi
+
+if [ -n "$BUILD_PROP_FILE" ] && [ -f "$BUILD_PROP_FILE" ]; then
+    AndroidVer=$(grep -m1 -E "^(ro.system.build.version.release|ro.build.version.release)=" "$BUILD_PROP_FILE" | cut -d '=' -f 2)
+    sdkLevel=$(grep -m1 -E "^(ro.system.build.version.sdk|ro.build.version.sdk)=" "$BUILD_PROP_FILE" | cut -d '=' -f 2)
+else
+    AndroidVer=$(cat "$work_dir/bin/ddevice/androidver.txt" 2>/dev/null || true)
+    sdkLevel=""
+fi
+
 device_code=$(cat $work_dir/bin/ddevice/device_code.txt)
 name=$(cat $work_dir/bin/ddevice/name_devices.txt)
 base_rom_code=$(cat $work_dir/bin/ddevice/base_rom_code.txt)

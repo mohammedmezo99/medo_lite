@@ -17,7 +17,7 @@ else
 	status="Official"
 fi
 
-check unzip aria2c 7z zip java zipalign python3 zstd bc xmlstarlet aapt
+check unzip aria2c curl tar file 7z zip java zipalign python3 zstd bc xmlstarlet aapt
 
 rm -rf $work_dir/out
 rm -rf $work_dir/build
